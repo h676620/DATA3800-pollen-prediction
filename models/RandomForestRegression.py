@@ -24,9 +24,9 @@ df = df.rename(columns={
                         "timestamp_weather" : "Vær_tid",        
                         "kabetuh0" : "Bjørk", 
                         "khpoach0" : "Gress",
-                        "sre000h0": "Sol", 
-                        "erefaoh0" : "Nedbør",
-                        "dkl010h0" : "Vind",
+                        "sre000h0": "Sol (minutt)", 
+                        "erefaoh0" : "Nedbør (mm)",
+                        "dkl010h0" : "Vind (m/s?)",
                         "tre200h0" : "LuftTemp"
                         })
 
@@ -41,9 +41,59 @@ df = df.drop(columns=["kaalnuh0","kacoryh0","kafaguh0",
                       "fve010h0","rre150h0","htoauths",
                       "gre000h0","oli000h0","olo000h0",
                       "osr000h0","tso005hs","tso010hs",
-                      "tso020hs", "ods000h0"])
-print(df.head(10))
+                      "tso020hs", "ods000h0", "Værstasjon", "Pollenstasjon"])
+"print(df.head(10))"
 "print(df.describe())"
 "print(df.dtypes)"
 
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+
 "Trening her ...."
+
+# Use numpy to convert to arrays
+import numpy as np
+# Labels are the values we want to predict
+prediction_value = np.array(df['Bjørk'])
+# Remove the labels from the features
+# axis 1 refers to the columns
+#df= df.drop('actual', axis = 1)
+# Saving feature names for later use
+df_list = list(df.columns)
+# Convert to numpy array
+df= np.array(df)
+
+# Using Skicit-learn to split data into training and testing sets
+from sklearn.model_selection import train_test_split
+# Split the data into training and testing sets
+train_df, test_df, train_prediction_value, test_prediction_value = train_test_split(df, prediction_value, test_size = 0.25, random_state = 42)
+
+print('Training df Shape:', train_df.shape)
+print('Training  test_prediction_value Shape:', train_prediction_value.shape)
+print('Testing df Shape:', test_df.shape)
+print('Testing  test_prediction_value shape:', test_prediction_value.shape)
+
+def avg_func():
+    antall =0
+    sum = 0
+    for antall in df_list:
+        if df["Samlende_tid"].dt.date.nunique()==1:
+         sum = sum(df["Bjørk"])
+         antall = antall + 1
+         snitt = sum/antall
+         return snitt
+   
+
+# The baseline predictions are the historical averages
+baseline_preds = test_df[:, df_list.index('average')]
+# Baseline errors, and display average baseline error
+baseline_errors = abs(baseline_preds - test_df)
+print('Average baseline error: ', round(np.mean(baseline_errors), 2))
+
+"--- Kilder for senere referanse ---"
+"https://stackoverflow.com/questions/11346283/renaming-column-names-in-pandas"
+"https://stackoverflow.com/questions/13411544/delete-a-column-from-a-pandas-dataframe"
+"https://medium.com/@prathik.codes/mastering-randomforestregressor-in-scikit-learn-a-practical-guide-ba8615097100"
+
+
+"https://dev.to/tamalbarman/running-a-random-forest-using-python-1920"
