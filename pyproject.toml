@@ -1,0 +1,24 @@
+[project]
+name = "data3800-pollen-prediction"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "80bble"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "requests (>=2.34.2,<3.0.0)",
+    "pandas (>=3.0.6,<4.0.0)",
+    "matplotlib (>=3.11.2,<4.0.0)",
+    "seaborn (>=0.13.2,<0.14.0)",
+    "datetime (>=6.0,<7.0)",
+    "scikit-learn (>=1.9.1,<2.0.0)",
+    "numpy (>=2.5.3,<3.0.0)",
+    "rich (==13.0.0)",
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
