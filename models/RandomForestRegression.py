@@ -16,6 +16,8 @@ df['master_timestamp'] = pd.to_datetime(df['master_timestamp'])
 df["dato"] = df["master_timestamp"].dt.date
 df['timestamp_pollen'] = pd.to_datetime(df['timestamp_pollen'])
 df['timestamp_weather'] = pd.to_datetime(df['timestamp_weather'])
+df["dato_p"] = df["timestamp_pollen"].dt.date
+df["dato_w"] = df["timestamp_weather"].dt.date
 
 
 df = df.rename(columns={
@@ -49,9 +51,34 @@ df = df.drop(columns=["kaalnuh0","kacoryh0","kafaguh0",
 "print(df.describe())"
 "print(df.dtypes)"
 
+
+"--------BJØRK----------"
+
 avg_bjork = df.groupby("dato")["Bjørk"].agg(bjørk_mean ='mean', bjørk_sum = 'sum', bjørk_count ='count')
-if (avg_bjork['bjørk_count'] >= 20).any():
+if (avg_bjork['bjørk_count'] >= 20 ).any():
     df.merge(avg_bjork, left_on='dato', right_index=True, how='left')
+
+avg_sun = df.groupby("dato")["Sol (minutt)"].agg(sol_mean ='mean', sol_sum = 'sum', sol_count ='count')
+if (avg_sun['sol_count'] >= 20).any():
+    df.merge(avg_sun, left_on='dato', right_index=True, how='left')
+
+avg_temp = df.groupby("dato")["LuftTemp"].agg(temp_mean ='mean', temp_sum = 'sum', temp_count ='count')
+if (avg_temp['temp_count'] >= 20).any():
+    df.merge(avg_temp, left_on='dato', right_index=True, how='left')
+
+avg_regn = df.groupby("dato")["Nedbør (mm)"].agg(regn_mean ='mean', regn_sum = 'sum', regn_count ='count')
+if (avg_regn['regn_count'] >= 20).any():
+    df.merge(avg_regn, left_on='dato', right_index=True, how='left')
+
+avg_vind = df.groupby("dato")["Vind (m/s?)"].agg(vind_mean ='mean', vind_sum = 'sum', vind_count ='count')
+if (avg_vind['vind_count'] >= 20).any():
+    df.merge(avg_vind, left_on='dato', right_index=True, how='left')
+
+avg_luftfuktighet = df.groupby("dato")["LuftFuktighet"].agg(luftfukt_mean ='mean', luftfukt_sum = 'sum', luftfukt_count ='count')
+if (avg_luftfuktighet['luftfukt_count'] >= 20).any():
+    df.merge(avg_vind, left_on='dato', right_index=True, how='left')
+
+"----------GRESS------------"
 
 avg_gress = df.groupby("dato")["Gress"].agg(gress_mean ='mean', gress_sum = 'sum', gress_count ='count')
 if (avg_gress['gress_count'] >= 20).any():
@@ -77,13 +104,30 @@ avg_luftfuktighet = df.groupby("dato")["LuftFuktighet"].agg(luftfukt_mean ='mean
 if (avg_luftfuktighet['luftfukt_count'] >= 20).any():
     df.merge(avg_vind, left_on='dato', right_index=True, how='left')
 
+average_bjørk = pd.concat([avg_bjork, avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
+average_gress = pd.concat([avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
+"print(average_bjørk.sample(10))"
+"print(average_gress.sample(10))"
 
-averages = pd.concat([avg_bjork, avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1)
-"c = pd.concat([df, summary], axis=1)"
-print(averages.sample(10))
+print("---Kun høye verdier ----")
+høy_bjørk = average_bjørk["bjørk_mean"] >= 90
+if(høy_bjørk).any():
+ print(average_bjørk[høy_bjørk])
+
+høy_gress = average_gress["gress_mean"] >= 20
+if(høy_gress).any():
+ "print(average_gress[høy_gress])"
 
 
+"------ Manglende målinger. F.eks mellom den 15.-27.april er det null målinger ------"
 
+"""mask_all_nan = avg_bjork['bjørk_mean'].isna()
+if mask_all_nan.any():
+    print("Grupper der alle 'Bjørk'-verdier er NaN:")
+    print(avg_bjork[mask_all_nan])"""
+
+
+"---------------End of table cleaning -----------------------"
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
@@ -136,3 +180,4 @@ def avg_func():
 
 
 "https://dev.to/tamalbarman/running-a-random-forest-using-python-1920"
+"https://weatherstory.io/pollen/guide/pollen-count-scale"
