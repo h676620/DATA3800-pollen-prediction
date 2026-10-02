@@ -118,6 +118,25 @@ høy_gress = average_gress["gress_mean"] >= 20
 if(høy_gress).any():
  "print(average_gress[høy_gress])"
 
+"----Data split----"
+average_bjørk = average_bjørk.reset_index()
+
+average_bjørk['dato'] = pd.to_datetime(average_bjørk['dato'])
+
+start_date = pd.Timestamp('2023-01-01')
+end_date = pd.Timestamp('2024-12-31')
+
+mask = average_bjørk['dato'].between(start_date, end_date)
+trening_2023_24 = average_bjørk.loc[mask]
+"print(trening_2023_24)"
+
+start_date = pd.Timestamp('2025-01-01')
+end_date = pd.Timestamp('2025-12-31')
+
+mask = average_bjørk['dato'].between(start_date, end_date)
+validering_2025 = average_bjørk.loc[mask]
+"print(validering_2025)"
+
 
 "------ Manglende målinger. F.eks mellom den 15.-27.april er det null målinger ------"
 
@@ -135,37 +154,6 @@ from sklearn.metrics import mean_squared_error, r2_score
 "Trening her ...."
 "print(average_bjørk.columns.tolist())"
 
-# One-hot encode the data using pandas get_dummies
-features = average_bjørk
-# Use numpy to convert to arrays
-import numpy as np
-# Labels are the values we want to predict
-labels = np.array(features['bjørk_mean'])
-# Remove the labels from the features
-# axis 1 refers to the columns
-#features= features.drop('Bjørk', axis = 1)
-# Saving feature names for later use
-feature_list = list(features.columns)
-# Convert to numpy array
-features = np.array(features)
-
-"print(feature_list)"
-
-# Using Skicit-learn to split data into training and testing sets
-from sklearn.model_selection import train_test_split
-# Split the data into training and testing sets
-train_features, test_features, train_labels, test_labels = train_test_split(features, labels, test_size = 0.25, random_state = 42)
-
-print('Training Features Shape:', train_features.shape)
-print('Training Labels Shape:', train_labels.shape)
-print('Testing Features Shape:', test_features.shape)
-print('Testing Labels Shape:', test_labels.shape)
-
-# The baseline predictions are the historical averages
-baseline_preds = test_features[:, feature_list.index('bjørk_mean')]
-# Baseline errors, and display average baseline error
-baseline_errors = abs(baseline_preds - test_labels)
-print('Average baseline error: ', round(np.mean(baseline_errors), 2))
 
 "--- Kilder for senere referanse ---"
 "https://stackoverflow.com/questions/11346283/renaming-column-names-in-pandas"
