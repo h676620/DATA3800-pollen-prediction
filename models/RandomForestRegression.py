@@ -106,13 +106,13 @@ if (avg_luftfuktighet['luftfukt_count'] >= 20).any():
 
 average_bjørk = pd.concat([avg_bjork, avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
 average_gress = pd.concat([avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
-"print(average_bjørk.sample(10))"
+print(average_bjørk.sample(10))
 "print(average_gress.sample(10))"
 
 print("---Kun høye verdier ----")
 høy_bjørk = average_bjørk["bjørk_mean"] >= 90
 if(høy_bjørk).any():
- print(average_bjørk[høy_bjørk])
+ "print(average_bjørk[høy_bjørk])"
 
 høy_gress = average_gress["gress_mean"] >= 20
 if(høy_gress).any():
@@ -133,45 +133,39 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 
 "Trening her ...."
+"print(average_bjørk.columns.tolist())"
 
+# One-hot encode the data using pandas get_dummies
+features = average_bjørk
 # Use numpy to convert to arrays
 import numpy as np
 # Labels are the values we want to predict
-"prediction_value = np.array(df['Bjørk'])"
+labels = np.array(features['bjørk_mean'])
 # Remove the labels from the features
 # axis 1 refers to the columns
-#df= df.drop('actual', axis = 1)
+#features= features.drop('Bjørk', axis = 1)
 # Saving feature names for later use
-"df_list = list(df.columns)"
+feature_list = list(features.columns)
 # Convert to numpy array
-"df= np.array(df)"
+features = np.array(features)
+
+"print(feature_list)"
 
 # Using Skicit-learn to split data into training and testing sets
 from sklearn.model_selection import train_test_split
 # Split the data into training and testing sets
-"train_df, test_df, train_prediction_value, test_prediction_value = train_test_split(df, prediction_value, test_size = 0.25, random_state = 42)"
+train_features, test_features, train_labels, test_labels = train_test_split(features, labels, test_size = 0.25, random_state = 42)
 
-"print('Training df Shape:', train_df.shape)"
-"print('Training  test_prediction_value Shape:', train_prediction_value.shape)"
-"print('Testing df Shape:', test_df.shape)"
-"print('Testing  test_prediction_value shape:', test_prediction_value.shape)"
-
-def avg_func():
-    antall =0
-    sum = 0
-    for antall in df_list:
-        if df["Samlende_tid"].dt.date.nunique()==1:
-         sum = sum(df["Bjørk"])
-         antall = antall + 1
-         snitt = sum/antall
-         return snitt
-   
+print('Training Features Shape:', train_features.shape)
+print('Training Labels Shape:', train_labels.shape)
+print('Testing Features Shape:', test_features.shape)
+print('Testing Labels Shape:', test_labels.shape)
 
 # The baseline predictions are the historical averages
-"baseline_preds = test_df[:, df_list.index('average')]"
+baseline_preds = test_features[:, feature_list.index('bjørk_mean')]
 # Baseline errors, and display average baseline error
-"baseline_errors = abs(baseline_preds - test_df)"
-"print('Average baseline error: ', round(np.mean(baseline_errors), 2))"
+baseline_errors = abs(baseline_preds - test_labels)
+print('Average baseline error: ', round(np.mean(baseline_errors), 2))
 
 "--- Kilder for senere referanse ---"
 "https://stackoverflow.com/questions/11346283/renaming-column-names-in-pandas"
