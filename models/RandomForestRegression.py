@@ -123,20 +123,24 @@ average_bjørk = average_bjørk.reset_index()
 
 average_bjørk['dato'] = pd.to_datetime(average_bjørk['dato'])
 
-start_date = pd.Timestamp('2023-01-01')
-end_date = pd.Timestamp('2024-12-31')
+start_date_train = pd.Timestamp('2023-01-01')
+end_date_train = pd.Timestamp('2024-12-31')
 
-mask = average_bjørk['dato'].between(start_date, end_date)
+mask = average_bjørk['dato'].between(start_date_train, end_date_train)
 trening_2023_24 = average_bjørk.loc[mask]
 "print(trening_2023_24)"
 
-start_date = pd.Timestamp('2025-01-01')
-end_date = pd.Timestamp('2025-12-31')
+start_date_val = pd.Timestamp('2025-01-01')
+end_date_val = pd.Timestamp('2025-12-31')
 
-mask = average_bjørk['dato'].between(start_date, end_date)
+mask = average_bjørk['dato'].between(start_date_val, end_date_val)
 validering_2025 = average_bjørk.loc[mask]
 "print(validering_2025)"
 
+start_date_pred = pd.Timestamp('2026-01-01')
+end_date_pred = pd.Timestamp('2026-09-09')
+mask = average_bjørk['dato'].between(start_date_val, end_date_val)
+actual_vals_2026 = average_bjørk.loc[mask]
 
 "------ Manglende målinger. F.eks mellom den 15.-27.april er det null målinger ------"
 
@@ -163,3 +167,6 @@ from sklearn.metrics import mean_squared_error, r2_score
 
 "https://dev.to/tamalbarman/running-a-random-forest-using-python-1920"
 "https://weatherstory.io/pollen/guide/pollen-count-scale"
+
+"https://www.youtube.com/watch?v=5_dnYnDCRXQ"
+"https://www.youtube.com/watch?v=-aCF0_wfVwY"
