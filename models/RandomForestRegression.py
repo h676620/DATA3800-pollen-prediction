@@ -1,3 +1,5 @@
+from datetime import date
+
 import pandas as pd
 import csv
 import DateTime
@@ -106,7 +108,7 @@ if (avg_luftfuktighet['luftfukt_count'] >= 20).any():
 
 average_bjørk = pd.concat([avg_bjork, avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
 average_gress = pd.concat([avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
-print(average_bjørk.sample(10))
+"print(average_bjørk.sample(10))"
 "print(average_gress.sample(10))"
 
 print("---Kun høye verdier ----")
@@ -152,11 +154,46 @@ if mask_all_nan.any():
 
 "---------------End of table cleaning -----------------------"
 
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
 
-"Trening her ...."
-"print(average_bjørk.columns.tolist())"
+from prophet import Prophet
+from prophet.diagnostics import performance_metrics
+from prophet.plot import plot_cross_validation_metric
+from prophet.diagnostics import cross_validation
+
+#setting variables
+feature = 'bjørk_mean'
+prediction_days = 240
+df = average_bjørk[[feature]].reset_index()
+df.head()
+
+forecast_start_dt = date(2026,1,1) 
+forecast_start_date = (forecast_start_dt).strftime("%Y-%m-%d") 
+
+#PROPHET MODEL
+
+df_copy = df.copy()
+df_copy = df_copy.rename(columns={'date': 'ds', feature: 'y'})
+df_copy[['y']] = df_copy[['y']].apply(pd.to_numeric)
+
+df_copy['ds'] = pd.to_datetime(df_copy['ds'])
+
+train_set = df_copy[(df_copy['ds'] < forecast_start_date) ]
+
+m = Prophet()
+
+m.fit(train_set)
+
+future = m.make_future_dataframe(periods=prediction_days)
+fcst_prophet_train = m.predict(future)
+
+#adding filter to only add the forecasted data into predicted_df
+filter = fcst_prophet_train['ds']>=forecast_start_date 
+predicted_df = fcst_prophet_train[filter][['ds','yhat']]
+
+
+
+
+
 
 
 "--- Kilder for senere referanse ---"
@@ -170,3 +207,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 
 "https://www.youtube.com/watch?v=5_dnYnDCRXQ"
 "https://www.youtube.com/watch?v=-aCF0_wfVwY"
+
+"----META Prophet----"
+"https://medium.com/@nia036/machine-learning-forecasting-with-meta-prophet-f7b3e1e50017"
+
