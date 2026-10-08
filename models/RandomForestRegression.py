@@ -1,5 +1,6 @@
 from datetime import date
 
+import numpy as np
 import pandas as pd
 import csv
 import DateTime
@@ -108,7 +109,7 @@ if (avg_luftfuktighet['luftfukt_count'] >= 20).any():
 
 average_bjørk = pd.concat([avg_bjork, avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
 average_gress = pd.concat([avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
-"print(average_bjørk.sample(10))"
+"print(average_bjørk.tail)"
 "print(average_gress.sample(10))"
 
 print("---Kun høye verdier ----")
@@ -126,23 +127,23 @@ average_bjørk = average_bjørk.reset_index()
 average_bjørk['dato'] = pd.to_datetime(average_bjørk['dato'])
 
 start_date_train = pd.Timestamp('2023-01-01')
-end_date_train = pd.Timestamp('2024-12-31')
+end_date_train = pd.Timestamp('2025-12-31')
 
 mask = average_bjørk['dato'].between(start_date_train, end_date_train)
-trening_2023_24 = average_bjørk.loc[mask]
+trening_2023_25 = average_bjørk.loc[mask]
 "print(trening_2023_24)"
 
-start_date_val = pd.Timestamp('2025-01-01')
+"""start_date_val = pd.Timestamp('2025-01-01')
 end_date_val = pd.Timestamp('2025-12-31')
 
 mask = average_bjørk['dato'].between(start_date_val, end_date_val)
-validering_2025 = average_bjørk.loc[mask]
+validering_2025 = average_bjørk.loc[mask]"""
 "print(validering_2025)"
 
-start_date_pred = pd.Timestamp('2026-01-01')
+"""start_date_pred = pd.Timestamp('2026-01-01')
 end_date_pred = pd.Timestamp('2026-09-09')
 mask = average_bjørk['dato'].between(start_date_val, end_date_val)
-actual_vals_2026 = average_bjørk.loc[mask]
+actual_vals_2026 = average_bjørk.loc[mask]"""
 
 "------ Manglende målinger. F.eks mellom den 15.-27.april er det null målinger ------"
 
@@ -154,46 +155,91 @@ if mask_all_nan.any():
 
 "---------------End of table cleaning -----------------------"
 
+import numpy as np
+import pandas as pd
+import catboost as cb
+from catboost import CatBoostRegressor
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-from prophet import Prophet
-from prophet.diagnostics import performance_metrics
-from prophet.plot import plot_cross_validation_metric
-from prophet.diagnostics import cross_validation
+print("Rader ved starten:", len(average_bjørk))
+print("Kolonner:", average_bjørk.columns.tolist())
 
-#setting variables
-feature = 'bjørk_mean'
-prediction_days = 240
-df = average_bjørk[[feature]].reset_index()
-df.head()
+# 1. Lag tids-features (Disse er superviktige for sesongbasert pollen!)
+average_bjørk['ukedag'] = average_bjørk["dato"].dt.day_of_week
+average_bjørk['mnd'] = average_bjørk["dato"].dt.month
+average_bjørk['år'] = average_bjørk["dato"].dt.year
 
-forecast_start_dt = date(2026,1,1) 
-forecast_start_date = (forecast_start_dt).strftime("%Y-%m-%d") 
+# Inkluder tids-features i modellen din
+features = ['sol_mean', 'temp_mean', 'regn_mean', 'vind_mean', 'luftfukt_mean', 'ukedag', 'mnd', 'år']
+target = 'bjørk_mean'
 
-#PROPHET MODEL
+print("Før dropna:", len(average_bjørk))
+print(average_bjørk[features + [target]].isna().sum())
 
-df_copy = df.copy()
-df_copy = df_copy.rename(columns={'date': 'ds', feature: 'y'})
-df_copy[['y']] = df_copy[['y']].apply(pd.to_numeric)
+# Drop rows med manglende verdier i features eller target
+average_bjørk.dropna(subset=features + [target], inplace=True)
+print("Etter dropna:", len(average_bjørk))
 
-df_copy['ds'] = pd.to_datetime(df_copy['ds'])
+# 2. KRONOLOGISK SPLITT (Korrekt oppsett)
+# Treningsdata: Alt til og med 2025
+train_df = average_bjørk[average_bjørk["år"] <= 2025]
+X_train = train_df[features]
+y_train = train_df[target]
 
-train_set = df_copy[(df_copy['ds'] < forecast_start_date) ]
+# Testdata: De første 9 månedene av 2026
+test_df = average_bjørk[average_bjørk["år"] == 2026]
+X_test = test_df[features]
+y_test = test_df[target]
 
-m = Prophet()
+# Sjekk at vi har data i begge sett
+print(f"Rader til trening (2023-2025): {len(X_train)}")
+print(f"Rader til test (2026): {len(X_test)}")
 
-m.fit(train_set)
+# 3. INITIALISER CATBOOST REGRESSOR
+model = CatBoostRegressor(
+    iterations=1000,
+    learning_rate=0.05, # Satt ned litt for mer stabil læring på tidsserier
+    depth=6,
+    loss_function='RMSE',
+    eval_metric='MAE',
+    random_seed=42,
+    verbose=100
+)
 
-future = m.make_future_dataframe(periods=prediction_days)
-fcst_prophet_train = m.predict(future)
+# 4. TREN MODELLEN
+# Vi bruker 2026 som eval_set for å se hvordan den spår fremtiden underveis
+model.fit(X_train, y_train, eval_set=(X_test, y_test), early_stopping_rounds=50)
 
-#adding filter to only add the forecasted data into predicted_df
-filter = fcst_prophet_train['ds']>=forecast_start_date 
-predicted_df = fcst_prophet_train[filter][['ds','yhat']]
+# 5. GENERER PREDIKSJONER FOR 2026
+predictions_2026 = model.predict(X_test)
 
+# 6. EVALUERING
+mae = mean_absolute_error(y_test, predictions_2026)
+rmse = np.sqrt(mean_squared_error(y_test, predictions_2026))
 
+print(f'\nMean Absolute Error (MAE) for 2026: {mae:.2f}')
+print(f'Root Mean Squared Error (RMSE) for 2026: {rmse:.2f}')
 
+# 7. PRINT OG PLOT PREDIKSJONENE
+print("\nFørste 10 prediksjoner for 2026:", predictions_2026[:10])
 
+# Visualisering
+plt.figure(figsize=(14, 6))
+# Plot historisk trening (valgfritt, kan droppes hvis det blir for uoversiktlig)
+plt.plot(train_df["dato"], y_train, label="Historisk Bjørk (2023-2025)", color="blue", alpha=0.4)
+# Plot faktisk vs predikert for 2026
+plt.plot(test_df["dato"], y_test, label="Faktisk Bjørk 2026", color="black", linewidth=1.5)
+plt.plot(test_df["dato"], predictions_2026, label="CatBoost Prediksjon 2026", color="green", linestyle="--", linewidth=2)
 
+plt.title("Bjørkepollen 2026: Faktisk vs CatBoost-prediksjon", fontsize=14, fontweight="bold")
+plt.xlabel("Dato")
+plt.ylabel("Pollenkonsentrasjon (bjørk_mean)")
+plt.axvline(x=pd.to_datetime("2025-12-31"), color="red", linestyle=":", label="Starten på 2026")
+plt.grid(True, linestyle="--", alpha=0.5)
+plt.legend()
+plt.tight_layout()
+plt.show()
 
 
 "--- Kilder for senere referanse ---"
@@ -211,3 +257,5 @@ predicted_df = fcst_prophet_train[filter][['ds','yhat']]
 "----META Prophet----"
 "https://medium.com/@nia036/machine-learning-forecasting-with-meta-prophet-f7b3e1e50017"
 
+"--Catboost--"
+"https://www.geeksforgeeks.org/machine-learning/demand-forecasting-in-retail-using-catboost-1/"
