@@ -31,6 +31,7 @@ data = df[
         "Lufttemperatur",
         "Vindstyrke",
         "Luftfuktighet",
+        "Solskinn",
         "Nedbør"
     ]
 ].copy()
@@ -55,6 +56,9 @@ daglig_alle = data.groupby("dato").agg(
     luftfuktighet_mean=("Luftfuktighet", "mean"),
     luftfuktighet_antall=("Luftfuktighet", "count"),
 
+    solskinn_total=("Solskinn", "sum"),
+    solskinn_antall=("Solskinn", "count"),
+
     nedbør_total=("Nedbør", "sum"),
     nedbør_antall=("Nedbør", "count")
 ).reset_index() #gjør "dato" om til en vanlig kolonne igjen
@@ -73,6 +77,7 @@ daglig_gyldige = daglig_alle[
     (daglig_alle["temperatur_antall"] >= 20) &
     (daglig_alle["vind_antall"] >= 20) &
     (daglig_alle["luftfuktighet_antall"] >= 20) &
+    (daglig_alle["solskinn_antall"] >= 20) &
     (daglig_alle["nedbør_antall"] >= 20)
 ].copy()
 
@@ -101,14 +106,10 @@ features = [
     "temperatur_mean",
     "vind_mean",
     "luftfuktighet_mean",
+    "solskinn_total",
     "nedbør_total",
     "dag_i_året"
 ]
-
-# x er inputene
-X = modell_data[features]
-# y er target
-y = modell_data["bjørk_i_morgen"]
 
 # lager datasett for treningsdata (2023 og 2024)
 train_data = modell_data[
@@ -124,9 +125,81 @@ test_data = modell_data[
 X_train = train_data[features]
 y_train = train_data["bjørk_i_morgen"]
 
+from xgboost import XGBRegressor
+
+model = XGBRegressor(
+    n_estimators=200,
+    max_depth=4,
+    learning_rate=0.05,
+    objective="reg:squarederror",
+    random_state=42
+)
+
+# trener modellen
+model.fit(X_train, y_train)
+
 # input og target til testdata
 X_test = test_data[features]
 y_test = test_data["bjørk_i_morgen"]
 
+# tester modellen
+y_pred = model.predict(X_test)
+
 print("Train:", X_train.shape)
 print("Test:", X_test.shape)
+
+##############
+
+# plotter resultatet:
+
+import matplotlib.pyplot as plt
+
+# størrelse på figuren
+plt.figure(figsize=(12, 6))
+
+# denne grafen hviser faktisk pollenkonsentrasjon
+# x-aksen er dato i 2025, y-aksen er faktisk bjørkepollen-konnsentrasjon i 2025
+plt.plot(
+    test_data["dato"],
+    y_test,
+    label="Faktisk pollen"
+)
+
+
+# denne grafen viser predikert pollen-konsentrasjon
+# x-aksen er dato i 2025, y-aksen er predikert bjørkepollen-konnsentrasjon i 2025
+plt.plot(
+    test_data["dato"],
+    y_pred,
+    label="Predikert pollen"
+)
+
+# navngir x-aksen
+plt.xlabel("Dato")
+
+# navngir y-aksen
+plt.ylabel("Bjørkepollenkonsentrasjon")
+
+# navngir figuren
+plt.title("Faktisk vs. predikert bjørkepollen i 2025")
+
+# navngir/forklarer linjene
+plt.legend()
+
+# viser grafen
+plt.show()
+
+#######################
+
+# evaluering
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error
+
+# sammenligner predikert pollenverdier og faktisk pollenverdier
+# mae er hvor mye modellen bommer i gjennomsnitt
+mae = mean_absolute_error(y_test, y_pred)  
+
+# rmse er også gjennomsnitt bare squared, så store bomminger/prediksjonsfeil gir større rmse-tall
+rmse = root_mean_squared_error(y_test, y_pred)
+
+print("MAE:", mae)
+print("RMSE:", rmse)

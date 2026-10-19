@@ -16,9 +16,11 @@ dependencies = [
     "scikit-learn (>=1.9.1,<2.0.0)",
     "numpy (>=2.5.3,<3.0.0)",
     "rich (==13.0.0)",
+    "xgboost (>=3.4.1,<4.0.0)",
 ]
 
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
