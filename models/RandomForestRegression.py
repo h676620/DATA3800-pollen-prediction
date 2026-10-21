@@ -82,7 +82,7 @@ avg_luftfuktighet = df.groupby("dato")["LuftFuktighet"].agg(luftfukt_mean ='mean
 if (avg_luftfuktighet['luftfukt_count'] >= 20).any():
     df.merge(avg_vind, left_on='dato', right_index=True, how='left')
 
-index_after_avg = df.groupby("dato")["indeks"]
+
 
 "----------GRESS------------"
 
