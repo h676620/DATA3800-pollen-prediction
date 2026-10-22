@@ -3,27 +3,38 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, r2_score
 
-# Laster inn pollen og værdata
+#Laster inn pollen og værdata
 df = pd.read_csv("data/full_pollen_and_weather_data_Zurich.csv", sep=";")
 df["master_timestamp"] = pd.to_datetime(df["master_timestamp"])
 df["dato"] = df["master_timestamp"].dt.date
+
+#Gi nytt navn til kolonnene for å gjøre det lettere å forstå hva de representerer
+df = df.rename(columns={
+    "kabetuh0": "bjork",
+    "tre200h0": "temperatur",
+    "fkl010h0": "vind",
+    "ure200h0": "luftfuktighet",
+    "rre150h0": "nedbor"
+})
 
 #Aggregere (slå sammen/oppsummer) dataene til en verdi per dag. Dette gjør vi fordi vi ønsker å predikere daglige pollenverdier, ikke timeverdier.
 #Vi ønsker å finne gjennomsnittet for bjørkepollen, temp, vind og luftfuktighet
 #Vi ønsker å finne summen for nedbør
 #Vi ønsker å telle antall gyldige målinger per deg for hver variabel
 daglig = df.groupby("dato").agg(
-    bjork_snitt=("kabetuh0", "mean"),
-    bjork_antall=("kabetuh0", "count"),
-    temp_snitt=("tre200h0", "mean"),
-    temp_antall=("tre200h0", "count"),
-    vind_snitt=("fkl010h0", "mean"),
-    vind_antall=("fkl010h0", "count"),
-    luftfukt_snitt=("ure200h0", "mean"),
-    luftfukt_antall=("ure200h0", "count"),
-    nedbor_sum=("rre150h0", "sum"),
-    nedbor_antall=("rre150h0", "count"),
+    bjork_snitt=("bjork", "mean"),
+    bjork_antall=("bjork", "count"),
+    temp_snitt=("temperatur", "mean"),
+    temp_antall=("temperatur", "count"),
+    vind_snitt=("vind", "mean"),
+    vind_antall=("vind", "count"),
+    luftfukt_snitt=("luftfuktighet", "mean"),
+    luftfukt_antall=("luftfuktighet", "count"),
+    nedbor_sum=("nedbor", "sum"),
+    nedbor_antall=("nedbor", "count"),
 ).reset_index()
+
+#RENAME DE ULIKE TINGENE SLIK AT DE SOM SER GRAFEN/KODEN KAN FORSTÅ HVA DE ER
 
 daglig["dato"] = pd.to_datetime(daglig["dato"])
 
