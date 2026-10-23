@@ -103,8 +103,12 @@ modell_data = modell_data.drop(columns=["i_går"])
 print(modell_data.head())
 print(modell_data.shape)
 
+# Beholder bare bjørkepollensesongen: 01.mars - 30.april
+bjork_sesong = daglig_gyldige[
+    daglig_gyldige["dato"].dt.month.between(3, 4)
+].copy()
 
-# Begynner med XGBoost:
+# Velger ut features/inputs for XGBoost:
 features = [
     "bjørk_i_går",
     "temperatur_mean",
@@ -115,19 +119,38 @@ features = [
     "dag_i_året"
 ]
 
-# lager datasett for treningsdata (2023 og 2024)
-train_data = daglig_gyldige[
-    daglig_gyldige["dato"].dt.year < 2025
+
+# Deler opp datasettet i treningsdata, valideringsdata og testdata basert på årstall. 
+# Vi bruker 2023 som treningsdata, 2024 som valideringsdata og 2025 som testdata:
+
+# Train: 2023
+train_data = bjork_sesong[
+    bjork_sesong["dato"].dt.year == 2023
 ].copy()
 
-# lager datasett for testdata (2025)
-test_data = daglig_gyldige[
-    daglig_gyldige["dato"].dt.year == 2025
+# Validation: 2024
+val_data = bjork_sesong[
+    bjork_sesong["dato"].dt.year == 2024
 ].copy()
 
-# input og target til treningsdata
+# Test: 2025
+test_data = bjork_sesong[
+    bjork_sesong["dato"].dt.year == 2025
+].copy()
+
+
+# input(x) og target(y) til treningsdata
 X_train = train_data[features]
 y_train = train_data["bjørk_mean"]
+
+# input(x) og target(y) til valideringsdata
+X_val = val_data[features]
+y_val = val_data["bjørk_mean"]
+
+# input(x) og target(y) til testdata
+X_test = test_data[features]
+y_test = test_data["bjørk_mean"]
+
 
 from xgboost import XGBRegressor
 
@@ -139,73 +162,55 @@ model = XGBRegressor(
     random_state=42
 )
 
-# trener modellen
+# trener modellen (bare på 2023)
 model.fit(X_train, y_train)
 
-# input og target til testdata
-X_test = test_data[features]
-y_test = test_data["bjørk_mean"]
+# tester modellen på valideringsdata (2024)
+y_val_pred = model.predict(X_val)
 
-# tester modellen
-y_pred = model.predict(X_test)
+# evaluerer modellen på valideringsdata (2024)
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
-print("Train:", X_train.shape)
-print("Test:", X_test.shape)
+# sammenligner predikert pollenverdier og faktisk pollenverdier:
+
+# mae er hvor mye modellen bommer i gjennomsnitt
+val_mae = mean_absolute_error(y_val, y_val_pred)
+# rmse er også gjennomsnitt bare squared, så store bomminger/prediksjonsfeil gir større rmse-tall
+val_rmse = root_mean_squared_error(y_val, y_val_pred)
+
+print("Validation MAE:", val_mae) 
+print("Validation RMSE:", val_rmse)
 
 
 ##############
-
 # plotter resultatet:
-
 import matplotlib.pyplot as plt
 
-# størrelse på figuren
 plt.figure(figsize=(12, 6))
 
-# denne grafen hviser faktisk pollenkonsentrasjon
-# x-aksen er dato i 2025, y-aksen er faktisk bjørkepollen-konnsentrasjon i 2025
+# Faktiske pollenverdier i 2024
 plt.plot(
-    test_data["dato"],
-    y_test,
+    val_data["dato"],
+    y_val,
     label="Faktisk pollen"
 )
 
-
-# denne grafen viser predikert pollen-konsentrasjon
-# x-aksen er dato i 2025, y-aksen er predikert bjørkepollen-konnsentrasjon i 2025
+# Modellens prediksjoner for 2024
 plt.plot(
-    test_data["dato"],
-    y_pred,
+    val_data["dato"],
+    y_val_pred,
     label="Predikert pollen"
 )
 
-# navngir x-aksen
 plt.xlabel("Dato")
-
-# navngir y-aksen
 plt.ylabel("Bjørkepollenkonsentrasjon")
+plt.title("Validering 2024: faktisk vs. predikert bjørkepollen")
 
-# navngir figuren
-plt.title("Faktisk vs. predikert bjørkepollen i 2025")
-
-# navngir/forklarer linjene
 plt.legend()
 
-# viser grafen
+plt.xticks(rotation=45)
+plt.tight_layout()
+
 plt.show()
 
-#######################
-
-# evaluering
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error
-
-# sammenligner predikert pollenverdier og faktisk pollenverdier
-# mae er hvor mye modellen bommer i gjennomsnitt
-mae = mean_absolute_error(y_test, y_pred)  
-
-# rmse er også gjennomsnitt bare squared, så store bomminger/prediksjonsfeil gir større rmse-tall
-rmse = root_mean_squared_error(y_test, y_pred)
-
-print("MAE:", mae)
-print("RMSE:", rmse)
 
