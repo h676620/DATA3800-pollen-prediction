@@ -100,6 +100,7 @@ print("Kolonner:", average_bjørk.columns.tolist())
 
 # 1. Lag tids-features (Disse er superviktige for sesongbasert pollen!)
 # Lag tids-features fra dato-indeksen
+average_bjørk["kalender_dag"] = pd.to_datetime(average_bjørk.index).day
 average_bjørk["mnd"] = pd.to_datetime(average_bjørk.index).month
 average_bjørk["år"] = pd.to_datetime(average_bjørk.index).year
 
