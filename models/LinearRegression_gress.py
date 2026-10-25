@@ -22,7 +22,7 @@ df = df.rename(columns={
 #Aggregere (slå sammen/oppsummer) dataene til en verdi per dag. Dette gjør vi fordi vi ønsker å predikere daglige pollenverdier, ikke timeverdier.
 #Vi ønsker å finne gjennomsnittet for gresspollen, temp, vind og luftfuktighet
 #Vi ønsker å finne summen for nedbør
-#Vi ønsker å telle antall gyldige målinger per deg for hver variabel
+#Vi ønsker å telle antall gyldige målinger per dag for hver variabel
 daglig = df.groupby("dato").agg(
     gress_snitt=("gress", "mean"),
     gress_antall=("gress", "count"),
@@ -79,7 +79,7 @@ gress_sesong = daglig[daglig["dato"].dt.month.between(4, 9)]
 #Del opp i trening-, validering- og testsett. Dette deles opp etter år
 gress_sesong["år"] = gress_sesong["dato"].dt.year
 
-trening = gress_sesong[gress_sesong["år"] == 2023, 2024]
+trening = gress_sesong[gress_sesong["år"].isin([2023, 2024])]
 validering = gress_sesong[gress_sesong["år"] == 2025]
 test = gress_sesong[gress_sesong["år"] == 2026]
 
@@ -131,7 +131,7 @@ final_modell.fit(X_final, y_final)
 #plt.title("Pollenprediksjon")
 #plt.legend()
 #plt.tight_layout()
-#plt.savefig("Linear_regression.png", dpi=150)
+#plt.savefig("Linear_regression_gress.png", dpi=150)
 #plt.show()
 
 #Koefissientene

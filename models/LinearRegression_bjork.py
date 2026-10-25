@@ -22,7 +22,7 @@ df = df.rename(columns={
 #Aggregere (slå sammen/oppsummer) dataene til en verdi per dag. Dette gjør vi fordi vi ønsker å predikere daglige pollenverdier, ikke timeverdier.
 #Vi ønsker å finne gjennomsnittet for bjørkepollen, temp, vind og luftfuktighet
 #Vi ønsker å finne summen for nedbør
-#Vi ønsker å telle antall gyldige målinger per deg for hver variabel
+#Vi ønsker å telle antall gyldige målinger per dag for hver variabel
 daglig = df.groupby("dato").agg(
     bjørk_snitt=("bjørk", "mean"),
     bjørk_antall=("bjørk", "count"),
@@ -131,7 +131,7 @@ final_modell.fit(X_final, y_final)
 #plt.title("Pollenprediksjon")
 #plt.legend()
 #plt.tight_layout()
-#plt.savefig("Linear_regression.png", dpi=150)
+#plt.savefig("Linear_regression_bjørk.png", dpi=150)
 #plt.show()
 
 #Koefissientene
