@@ -73,12 +73,15 @@ target = "bjørk_snitt"
 #Fjerner dager der noe mangler. GJør dette fordi LinearRegression ikke kan håndtere NaN-verdier. Tidligere i koden endret vi ugyldige dager til Nan, men dette var bare for at det skulle gi riktig "i går", men vi trenger ikke de til noe annet. 
 daglig = daglig.dropna(subset=features + [target]).reset_index(drop=True)
 
-#Del opp i trening-, validering- og testsett. Dette deles opp etter år
-daglig["år"] = daglig["dato"].dt.year
+#Bjørk sesong er mars og april. Vi ønsker å predikere pollennivåene i denne perioden, så vi filtrerer ut alle andre måneder.
+bjørk_sesong = daglig[daglig["dato"].dt.month.between(3, 4)]
 
-trening = daglig[daglig["år"] == 2023]
-validering = daglig[daglig["år"] == 2024]
-test = daglig[daglig["år"] == 2025]
+#Del opp i trening-, validering- og testsett. Dette deles opp etter år
+bjørk_sesong["år"] = bjørk_sesong["dato"].dt.year
+
+trening = bjørk_sesong[bjørk_sesong["år"] == 2023]
+validering = bjørk_sesong[bjørk_sesong["år"] == 2024]
+test = bjørk_sesong[bjørk_sesong["år"] == 2025]
 
 X_trening, y_trening = trening[features], trening[target]
 X_validering, y_validering = validering[features], validering[target]
@@ -98,6 +101,12 @@ print("\n--- Validering (2024) ---")
 print("MAE:", mean_absolute_error(y_validering, validering_prediksjoner))
 print("R2:", r2_score(y_validering, validering_prediksjoner))
 print("RMSE:", root_mean_squared_error(y_validering, validering_prediksjoner))
+
+#Snitt pollen i valideringperioden, for å vurdere hvor stor MAE er i forhold til gjennomsnittlig pollennivå. Dette gir oss en bedre forståelse av hvor godt modellen predikerer pollennivåene.
+print("Snitt pollen i valideringen:", y_validering.mean())
+
+#Sammenligningsmodell (baseline) som predikerer at dagens pollennivå er det samme som gårsdagens pollennivå. Dette er en enkel modell som vi kan bruke for å vurdere hvor mye bedre vår lineære regresjonsmodell er.
+print("MAE hvis vi finner ut av gårsdagens pollennivå", mean_absolute_error(y_validering, X_validering["bjørk_i_går"]))
 
 #Tren modellen på både trenings- og valideringssettet.
 X_final = pd.concat([X_trening, X_validering])
@@ -130,5 +139,3 @@ print("\n--- Koefissienter ---")
 for navn, koeff in zip(features, final_modell.coef_):
     print(f"{navn}: {koeff: .3f}")
 print(f"Konstantledd: {final_modell.intercept_: .3f}")
-
-#Må legge til pollensesongen
