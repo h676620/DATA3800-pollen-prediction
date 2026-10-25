@@ -1,10 +1,12 @@
 import pandas as pd
 
+# Leser inn datasettet
 df = pd.read_csv(
     "data/full_pollen_and_weather_data_Zurich.csv",
     sep=";"
 )
 
+# Gir kolonnene nye navn for å gjøre det mer forståelig
 df = df.rename(columns={
     "station_abbr_pollen": "Pollenstasjon",
     "station_abbr_weather": "Værstasjon",
@@ -24,6 +26,7 @@ df = df.rename(columns={
     "dkl010h0": "Vindretning"
 })
 
+# Velger ut de kolonnene som er relevante
 data = df[
     [
         "Tid",
@@ -36,7 +39,7 @@ data = df[
     ]
 ].copy()
 
-# Gjør tidskolonnen om til datetime
+# Konverterer tidskolonnen til datetime
 data["Tid"] = pd.to_datetime(data["Tid"])
 
 # Lager dato uten klokkeslett
@@ -71,7 +74,7 @@ daglig_alle["dato"] = pd.to_datetime(daglig_alle["dato"])
 daglig_alle["dag_i_året"] = daglig_alle["dato"].dt.dayofyear
 
 
-# Bruker bare de dagene/radene som har minst 20 gyldige timer/målinger.
+# Bruker bare de dagene/radene som har minst 20 gyldige timer/målinger. Filtrerer ut de dagene som har mindre enn 20 gyldige målinger for noen av variablene.
 daglig_gyldige = daglig_alle[
     (daglig_alle["bjørk_antall"] >= 20) &
     (daglig_alle["temperatur_antall"] >= 20) &
@@ -84,11 +87,20 @@ daglig_gyldige = daglig_alle[
 # Sorterer datoene kronologisk før vi lager target (trengs egentlig ikke, bare for sikkerhet, kan droppe)
 daglig_gyldige = daglig_gyldige.sort_values("dato").copy()
 
+# enkel print for å se hvordan datasettet ser ut etter datarensing
+print("\nStørrelse etter datarensing:")
+print(daglig_gyldige.shape)
+
+print(daglig_gyldige.head())
+
+print("\nstatistikk:")
+print(daglig_gyldige.describe())
+
+# plotte graf for å se hvordan datasettet ser ut etter datarensing...:
+
+
 # lager ny kolonne som er hva bjørkekonsentrasjonen var dagen før, slik at modellen kan bruke det som input for å predikere konsentrasjonen i dag
 daglig_gyldige["bjørk_i_går"] = daglig_gyldige["bjørk_mean"].shift(+1)
-
-# må sørge for at vi ikke har noen NaN-verdier i input-kolonnene, så dropper første rad som har NaN i "bjørk_i_går" (dobbelsjekk, kanskje det går greit)
-# ...
 
 # må sørge for at "bjørk_i_går" faktisk kommer fra dagen før (dato-1) og ikke fra flere dager siden, siden vi har dager/rader som mangler:
 # lager kolonne som er datoen forrige dag 
@@ -103,8 +115,17 @@ modell_data = modell_data.drop(columns=["i_går"])
 print(modell_data.head())
 print(modell_data.shape)
 
+# Beholder bare bjørkepollensesongen: 01.mars - 30.april
+bjork_sesong = modell_data[
+    modell_data["dato"].dt.month.between(3, 4)
+].copy()
 
-# Begynner med XGBoost:
+
+############################################################
+# Starter med XGBoost-modellen:
+############################################################
+
+# Velger ut features/inputs for XGBoost
 features = [
     "bjørk_i_går",
     "temperatur_mean",
@@ -115,97 +136,98 @@ features = [
     "dag_i_året"
 ]
 
-# lager datasett for treningsdata (2023 og 2024)
-train_data = daglig_gyldige[
-    daglig_gyldige["dato"].dt.year < 2025
+
+# Deler opp datasettet i treningsdata, valideringsdata og testdata basert på årstall. 
+# Vi bruker 2023 til trening og 2024 til validering først, og så etter valideringen bruker vi både 2023 og 2024 som treningsdata og 2025 som final test:
+
+# Train: 2023
+train_data = bjork_sesong[
+    bjork_sesong["dato"].dt.year == 2023
 ].copy()
 
-# lager datasett for testdata (2025)
-test_data = daglig_gyldige[
-    daglig_gyldige["dato"].dt.year == 2025
+# Validation: 2024
+val_data = bjork_sesong[
+    bjork_sesong["dato"].dt.year == 2024
 ].copy()
 
-# input og target til treningsdata
+# Test: 2025
+test_data = bjork_sesong[
+    bjork_sesong["dato"].dt.year == 2025
+].copy()
+
+
+# input(x) og target(y) til treningsdata
 X_train = train_data[features]
 y_train = train_data["bjørk_mean"]
+
+# input(x) og target(y) til valideringsdata
+X_val = val_data[features]
+y_val = val_data["bjørk_mean"]
+
+# input(x) og target(y) til testdata
+X_test = test_data[features]
+y_test = test_data["bjørk_mean"]
+
 
 from xgboost import XGBRegressor
 
 model = XGBRegressor(
-    n_estimators=200,
-    max_depth=4,
-    learning_rate=0.05,
+    n_estimators=100,
+    max_depth=3,
+    learning_rate=0.1,
     objective="reg:squarederror",
     random_state=42
 )
 
-# trener modellen
+# trener modellen (bare på 2023)
 model.fit(X_train, y_train)
 
-# input og target til testdata
-X_test = test_data[features]
-y_test = test_data["bjørk_mean"]
+# tester modellen på valideringsdata (2024)
+y_val_pred = model.predict(X_val)
 
-# tester modellen
-y_pred = model.predict(X_test)
+# evaluerer modellen på valideringsdata (2024)
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
-print("Train:", X_train.shape)
-print("Test:", X_test.shape)
+# sammenligner predikert pollenverdier og faktisk pollenverdier:
+
+# mae er hvor mye modellen bommer i gjennomsnitt
+val_mae = mean_absolute_error(y_val, y_val_pred)
+# rmse er også gjennomsnitt bare squared, så store bomminger/prediksjonsfeil gir større rmse-tall
+val_rmse = root_mean_squared_error(y_val, y_val_pred)
+
+print("Validation MAE:", val_mae) 
+print("Validation RMSE:", val_rmse)
 
 
 ##############
-
 # plotter resultatet:
-
 import matplotlib.pyplot as plt
 
-# størrelse på figuren
 plt.figure(figsize=(12, 6))
 
-# denne grafen hviser faktisk pollenkonsentrasjon
-# x-aksen er dato i 2025, y-aksen er faktisk bjørkepollen-konnsentrasjon i 2025
+# Faktiske pollenverdier i 2024
 plt.plot(
-    test_data["dato"],
-    y_test,
+    val_data["dato"],
+    y_val,
     label="Faktisk pollen"
 )
 
-
-# denne grafen viser predikert pollen-konsentrasjon
-# x-aksen er dato i 2025, y-aksen er predikert bjørkepollen-konnsentrasjon i 2025
+# Modellens prediksjoner for 2024
 plt.plot(
-    test_data["dato"],
-    y_pred,
+    val_data["dato"],
+    y_val_pred,
     label="Predikert pollen"
 )
 
-# navngir x-aksen
 plt.xlabel("Dato")
-
-# navngir y-aksen
 plt.ylabel("Bjørkepollenkonsentrasjon")
+plt.title("Validering 2024: faktisk vs. predikert bjørkepollen")
 
-# navngir figuren
-plt.title("Faktisk vs. predikert bjørkepollen i 2025")
-
-# navngir/forklarer linjene
 plt.legend()
 
-# viser grafen
+plt.xticks(rotation=45)
+plt.tight_layout()
+
 plt.show()
 
-#######################
-
-# evaluering
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error
-
-# sammenligner predikert pollenverdier og faktisk pollenverdier
-# mae er hvor mye modellen bommer i gjennomsnitt
-mae = mean_absolute_error(y_test, y_pred)  
-
-# rmse er også gjennomsnitt bare squared, så store bomminger/prediksjonsfeil gir større rmse-tall
-rmse = root_mean_squared_error(y_test, y_pred)
-
-print("MAE:", mae)
-print("RMSE:", rmse)
 
