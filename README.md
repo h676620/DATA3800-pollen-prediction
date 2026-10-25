@@ -41,3 +41,9 @@ Open the desired `.ipynb` file in VS Code, Jupyter Notebook or Google Colab.
 
 If using VS Code, select the Poetry environment as the notebook kernel.
 
+
+
+
+The dataset must be located at:
+
+data/full_pollen_and_weather_data_Zurich.csv
