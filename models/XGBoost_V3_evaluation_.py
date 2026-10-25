@@ -96,8 +96,6 @@ print(daglig_gyldige.head())
 print("\nstatistikk:")
 print(daglig_gyldige.describe())
 
-# plotte graf for å se hvordan datasettet ser ut etter datarensing...:
-
 
 # lager ny kolonne som er hva bjørkekonsentrasjonen var dagen før, slik at modellen kan bruke det som input for å predikere konsentrasjonen i dag
 daglig_gyldige["bjørk_i_går"] = daglig_gyldige["bjørk_mean"].shift(+1)
