@@ -6,20 +6,14 @@ Machine learning project for forecasting pollen concentrations in Zurich using h
 
 This project uses **Poetry** for dependency management.
 
-### 1. Clone the repository
 
-```bash
-git clone <repository-url>
-cd DATA3800-pollen-prediction
-```
-
-### 2. Install dependencies
+### 1. Install dependencies
 
 ```bash
 poetry install --no-root
 ```
 
-### 3. To run the data pipelines
+### 2. To run the data pipelines
 
 Run the birch pollen pipeline:
 
@@ -33,7 +27,7 @@ Run the grass pollen pipeline:
 poetry run python src/oblig2_gress_data_pipeline.py
 ```
 
-### 4. To run the notebooks
+### 3. To run the notebooks
 
 The notebooks are located in the `notebooks/` folder.
 
