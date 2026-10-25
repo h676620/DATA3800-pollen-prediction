@@ -98,39 +98,37 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 print("Rader ved starten:", len(average_bjørk))
 print("Kolonner:", average_bjørk.columns.tolist())
 
-# 1. Lag tids-features (Disse er superviktige for sesongbasert pollen!)
-# Lag tids-features fra dato-indeksen
+# Tidsfeatures
 average_bjørk["kalender_dag"] = pd.to_datetime(average_bjørk.index).day
 average_bjørk["mnd"] = pd.to_datetime(average_bjørk.index).month
 average_bjørk["år"] = pd.to_datetime(average_bjørk.index).year
 
-# Inkluder tids-features i modellen din
 features = ['sol_mean', 'temp_mean', 'regn_mean', 'vind_mean', 'luftfukt_mean', 'dagnr']
 target = 'bjørk_mean'
 
 print("Før dropna:", len(average_bjørk))
 print(average_bjørk[features + [target]].isna().sum())
 
-# Drop rows med manglende verdier i features eller target
+# Fjerner NaN i features/target
 average_bjørk.dropna(subset=features + [target], inplace=True)
 """print("Etter dropna:", len(average_bjørk))"""
 
-# 2. KRONOLOGISK SPLITT (Korrekt oppsett)
-# Treningsdata: Alt til og med 2025
+# Datasplitt
 train_df = average_bjørk[average_bjørk["år"] <= 2024]
 X_train = train_df[features]
 y_train = train_df[target]
 
-# Testdata: De første 9 månedene av 2026
+
+#test
 test_df = average_bjørk[average_bjørk["år"] == 2025]
 X_test = test_df[features]
 y_test = test_df[target]
 
-# Sjekk at vi har data i begge sett
+
 """print(f"Rader til trening (2023-2025): {len(X_train)}")
 print(f"Rader til test (2026): {len(X_test)}")"""
 
-# 3. INITIALISER CATBOOST REGRESSOR
+# Init catboost-reg
 model = CatBoostRegressor(
     iterations=1000,
     learning_rate=0.05, # Satt ned litt for mer stabil læring på tidsserier
@@ -141,25 +139,24 @@ model = CatBoostRegressor(
     verbose=100
 )
 
-# 4. TREN MODELLEN
-# Vi bruker 2026 som eval_set for å se hvordan den spår fremtiden underveis
+# Trening
 model.fit(X_train, y_train, eval_set=(X_test, y_test), early_stopping_rounds=50)
 
-# 5. GENERER PREDIKSJONER FOR 2026
+# Prediksjoner
 predictions_2025 = model.predict(X_test)
 predictions_2025 = np.maximum(predictions_2025, 0)
 
-# 6. EVALUERING
+# Evaluering
 mae = mean_absolute_error(y_test, predictions_2025)
 rmse = np.sqrt(mean_squared_error(y_test, predictions_2025))
 
 print(f'\nMean Absolute Error (MAE) for 2026: {mae:.2f}')
 print(f'Root Mean Squared Error (RMSE) for 2026: {rmse:.2f}')
 
-# Sørg for at indeksene er datoer
+# Indeks = dato
 test_dates = pd.to_datetime(test_df.index)
 
-# Velg perioden 1. februar–1. mai 2025, inkludert begge datoene
+# periode
 periode = (test_dates >= "2025-03-01") & (test_dates <= "2025-05-10")
 
 y_test_periode = y_test.iloc[periode]
@@ -178,7 +175,7 @@ print(f"Gjennomsnittlig faktisk pollenverdi: {typisk_pollenverdi:.2f}")
 print(f"MAE / gjennomsnitt: {mae_periode / typisk_pollenverdi * 100:.1f}%")
 print(f"RMSE / gjennomsnitt: {rmse_periode / typisk_pollenverdi * 100:.1f}%")
 
-# 7. PRINT OG PLOT PREDIKSJONENE
+
 print("\nFørste 10 prediksjoner for 2025:", predictions_2025[:10])
 
 # Visualisering
