@@ -57,30 +57,31 @@ df = df.drop(columns=["kaalnuh0","kacoryh0","kafaguh0",
 print(df.head(40))
 
 avg_bjork = df.groupby("dato")["Bjørk"].agg(bjørk_mean ='mean', bjørk_sum = 'sum', bjørk_count ='count')
-if (avg_bjork['bjørk_count'] >= 20 ).any():
-    df.merge(avg_bjork, left_on='dato', right_index=True, how='left')
+
 
 avg_sun = df.groupby("dato")["Sol (minutt)"].agg(sol_mean ='mean', sol_sum = 'sum', sol_count ='count')
-if (avg_sun['sol_count'] >= 20).any():
-    df.merge(avg_sun, left_on='dato', right_index=True, how='left')
+
 
 avg_temp = df.groupby("dato")["LuftTemp"].agg(temp_mean ='mean', temp_sum = 'sum', temp_count ='count')
-if (avg_temp['temp_count'] >= 20).any():
-    df.merge(avg_temp, left_on='dato', right_index=True, how='left')
+
 
 avg_regn = df.groupby("dato")["Nedbør (mm)"].agg(regn_mean ='mean', regn_sum = 'sum', regn_count ='count')
-if (avg_regn['regn_count'] >= 20).any():
-    df.merge(avg_regn, left_on='dato', right_index=True, how='left')
 
 avg_vind = df.groupby("dato")["Vind (m/s?)"].agg(vind_mean ='mean', vind_sum = 'sum', vind_count ='count')
-if (avg_vind['vind_count'] >= 20).any():
-    df.merge(avg_vind, left_on='dato', right_index=True, how='left')
+
 
 avg_luftfuktighet = df.groupby("dato")["LuftFuktighet"].agg(luftfukt_mean ='mean', luftfukt_sum = 'sum', luftfukt_count ='count')
-if (avg_luftfuktighet['luftfukt_count'] >= 20).any():
-    df.merge(avg_vind, left_on='dato', right_index=True, how='left')
+
 
 avg_dagnr = df.groupby("dato")["day_date"].first().rename("dagnr")
+avg_bjork = avg_bjork[avg_bjork['bjørk_count']>=20]
+avg_sun = avg_sun[avg_sun["sol_count"] >= 20]
+avg_temp = avg_temp[avg_temp["temp_count"] >= 20]
+avg_regn = avg_regn[avg_regn["regn_count"] >= 20]
+avg_vind = avg_vind[avg_vind["vind_count"] >= 20]
+avg_luftfuktighet = avg_luftfuktighet[
+    avg_luftfuktighet["luftfukt_count"] >= 20
+]
 
 average_bjørk = pd.concat([avg_dagnr, avg_bjork, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet ], axis=1) 
 print(average_bjørk.sample(10))
