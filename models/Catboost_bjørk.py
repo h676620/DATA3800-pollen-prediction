@@ -114,48 +114,76 @@ print(average_bjørk[features + [target]].isna().sum())
 average_bjørk.dropna(subset=features + [target], inplace=True)
 """print("Etter dropna:", len(average_bjørk))"""
 
-# Datasplitt
-train_df = average_bjørk[average_bjørk["år"] <= 2024]
-X_train = train_df[features]
-y_train = train_df[target]
+# Del data kronologisk
+train_early = average_bjørk[average_bjørk["år"] <= 2023]
+val_2024 = average_bjørk[average_bjørk["år"] == 2024]
+train_final = average_bjørk[average_bjørk["år"] <= 2024]
+test_2025 = average_bjørk[average_bjørk["år"] == 2025]
+
+# Kontroller at alle delene inneholder data
+print("Trening til og med 2023:", len(train_early))
+print("Validering 2024:", len(val_2024))
+print("Endelig trening til og med 2024:", len(train_final))
+print("Test 2025:", len(test_2025))
+
+if train_early.empty or val_2024.empty or train_final.empty or test_2025.empty:
+    raise ValueError("En av datasplittende er tom. Kontroller hvilke år som finnes i dataene.")
 
 
-#test
-test_df = average_bjørk[average_bjørk["år"] == 2025]
-X_test = test_df[features]
-y_test = test_df[target]
-
-
-"""print(f"Rader til trening (2023-2025): {len(X_train)}")
-print(f"Rader til test (2026): {len(X_test)}")"""
-
-# Init catboost-reg
-model = CatBoostRegressor(
+model_for_validation = CatBoostRegressor(
     iterations=1000,
-    learning_rate=0.05, # Satt ned litt for mer stabil læring på tidsserier
+    learning_rate=0.05,
     depth=6,
-    loss_function='RMSE',
-    eval_metric='MAE',
+    loss_function="RMSE",
+    eval_metric="MAE",
     random_seed=42,
     verbose=100
 )
 
-# Trening
-model.fit(X_train, y_train, eval_set=(X_test, y_test), early_stopping_rounds=50)
+model_for_validation.fit(
+    train_early[features],
+    train_early[target],
+    eval_set=(val_2024[features], val_2024[target]),
+    early_stopping_rounds=50,
+    verbose=100
+)
 
-# Prediksjoner
-predictions_2025 = model.predict(X_test)
+
+best_iterations = model_for_validation.get_best_iteration() + 1
+print("Valgt antall iterasjoner:", best_iterations)
+
+
+final_model = CatBoostRegressor(
+    iterations=best_iterations,
+    learning_rate=0.05,
+    depth=6,
+    loss_function="RMSE",
+    eval_metric="MAE",
+    random_seed=42,
+    verbose=100
+)
+
+final_model.fit(
+    train_final[features],
+    train_final[target]
+)
+
+
+predictions_2025 = final_model.predict(test_2025[features])
 predictions_2025 = np.maximum(predictions_2025, 0)
 
-# Evaluering
+y_test = test_2025[target]
+
 mae = mean_absolute_error(y_test, predictions_2025)
 rmse = np.sqrt(mean_squared_error(y_test, predictions_2025))
 
-print(f'\nMean Absolute Error (MAE) for 2026: {mae:.2f}')
-print(f'Root Mean Squared Error (RMSE) for 2026: {rmse:.2f}')
+print(f"MAE for 2025: {mae:.2f}")
+print(f"RMSE for 2025: {rmse:.2f}")
+
+"-----------------"
 
 # Indeks = dato
-test_dates = pd.to_datetime(test_df.index)
+test_dates = pd.to_datetime(test_2025.index)
 
 # periode
 periode = (test_dates >= "2025-03-01") & (test_dates <= "2025-05-10")
@@ -179,27 +207,27 @@ print(f"RMSE / gjennomsnitt: {rmse_periode / typisk_pollenverdi * 100:.1f}%")
 
 print("\nFørste 10 prediksjoner for 2025:", predictions_2025[:10])
 
-# Visualisering
+# Visualisering:
 plt.figure(figsize=(14, 6))
 
 plt.plot(
-    train_df.index,
-    y_train,
-    label="Historisk Bjørk (til og med 2024)",
+    train_final.index,
+    train_final[target],
+    label="Historisk bjørkepollen (til og med 2024)",
     color="blue",
     alpha=0.4,
 )
 
 plt.plot(
-    test_df.index,
+    test_2025.index,
     y_test,
-    label="Faktisk Bjørk 2025",
+    label="Faktisk bjørkepollen 2025",
     color="black",
     linewidth=1.5,
 )
 
 plt.plot(
-    test_df.index,
+    test_2025.index,
     predictions_2025,
     label="CatBoost-prediksjon 2025",
     color="green",
@@ -207,10 +235,15 @@ plt.plot(
     linewidth=2,
 )
 
-plt.title("Bjørkepollen 2025: Faktisk vs. CatBoost-prediksjon")
+plt.title("Bjørkepollen 2025: faktisk vs. CatBoost-prediksjon")
 plt.xlabel("Dato")
 plt.ylabel("Pollenkonsentrasjon (bjørk_mean)")
-plt.axvline(pd.Timestamp("2025-01-01"), color="red", linestyle=":", label="Starten på 2025")
+plt.axvline(
+    pd.Timestamp("2025-01-01"),
+    color="red",
+    linestyle=":",
+    label="Starten på 2025",
+)
 plt.grid(True, linestyle="--", alpha=0.5)
 plt.legend()
 plt.tight_layout()
