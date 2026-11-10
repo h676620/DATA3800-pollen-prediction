@@ -208,7 +208,7 @@ print(f"RMSE / gjennomsnitt: {rmse_periode / typisk_pollenverdi * 100:.1f}%")
 
 print("\nFørste 10 prediksjoner for 2025:", predictions_2025[:10])
 
-"------ Beregning av når pred og reele målinger er 90+ for 2025 -----------"
+"------ Beregning av når pred og reele målinger er 90+ for 2025 -----------" 
 
 # Lag én serie med prediksjoner indeksert etter dato
 prediksjoner = pd.Series(
