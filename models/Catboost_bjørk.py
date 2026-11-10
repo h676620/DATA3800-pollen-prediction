@@ -232,6 +232,7 @@ if høy_mask.any():
     mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
     rmse_høy_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
     )
+    print(f"Antall dager i perioden: {periode.sum()}")
     print(f"Antall dager i rmse perioden: {høy_mask.sum()}")
     print(f"Høy pollen MAE: {mae_høy_pollen:.2f}")
     print(f"Høy pollen RMSE: {rmse_høy_pollen:.2f}")
@@ -278,7 +279,7 @@ plt.plot(
     test_2025.index,
     predictions_2025,
     label="CatBoost-prediksjon 2025",
-    color="green",
+    color="blue",
     linestyle="--",
     linewidth=2,
 )
