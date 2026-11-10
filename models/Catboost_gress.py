@@ -249,7 +249,7 @@ print(f"Predikert >= 20, men målt < 20 (falske alarmer): {falsk_alarm}")
 print(f"Målt >= 20, men predikert < 20 (bommet toppdag): {bommet_toppdag}")
 print(f"Både målt og predikert < 20: {riktig_lav}")
 
-
+"---sjekk for overtilpassing , lekasjer osv.. ---"
 
 "------------------"
 
