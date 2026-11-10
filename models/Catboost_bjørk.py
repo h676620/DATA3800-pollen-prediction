@@ -188,6 +188,7 @@ test_dates = pd.to_datetime(test_2025.index)
 # periode
 periode = (test_dates >= "2025-03-01") & (test_dates <= "2025-05-10")
 
+
 y_test_periode = y_test.iloc[periode]
 predictions_periode = predictions_2025[periode]
 
@@ -207,6 +208,53 @@ print(f"RMSE / gjennomsnitt: {rmse_periode / typisk_pollenverdi * 100:.1f}%")
 
 print("\nFørste 10 prediksjoner for 2025:", predictions_2025[:10])
 
+"------ Beregning av når pred og reele målinger er 90+ for 2025 -----------"
+
+# Lag én serie med prediksjoner indeksert etter dato
+prediksjoner = pd.Series(
+    predictions_2025,
+    index=test_2025.index,
+    name="predikert_pollen"
+)
+
+# Bygg tabellen med samme datoutvalg for alle kolonnene
+sammenligningstabell = pd.DataFrame({
+    "dato": test_dates[periode],
+    "predikert_pollen": prediksjoner.iloc[periode].to_numpy(),
+    "målt_pollen": y_test.iloc[periode].to_numpy(),
+})
+
+"""mae_høy_pollen = mean_absolute_error(sammenligningstabell["predikert_pollen_cat"], sammenligningstabell["målt_pollen_cat"])"""
+
+høy_mask = sammenligningstabell["målt_pollen"] >= 90
+
+if høy_mask.any():
+    mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
+    rmse_høy_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
+    )
+    print(f"Antall dager i rmse perioden: {høy_mask.sum()}")
+    print(f"Høy pollen MAE: {mae_høy_pollen:.2f}")
+    print(f"Høy pollen RMSE: {rmse_høy_pollen:.2f}")
+else:
+    print("Ingen dager med målt pollenverdi på minst 90 i perioden.")
+
+
+faktisk_høy = sammenligningstabell["målt_pollen"] >= 90
+predikert_høy = sammenligningstabell["predikert_pollen"] >= 90
+
+treff = (faktisk_høy & predikert_høy).sum()
+falsk_alarm = (~faktisk_høy & predikert_høy).sum()
+bommet_toppdag = (faktisk_høy & ~predikert_høy).sum()
+riktig_lav = (~faktisk_høy & ~predikert_høy).sum()
+
+print(f"Faktisk og predikert >= 90 (treff): {treff}")
+print(f"Predikert >= 90, men målt < 90 (falske alarmer): {falsk_alarm}")
+print(f"Målt >= 90, men predikert < 90 (bommet toppdag): {bommet_toppdag}")
+print(f"Både målt og predikert < 90: {riktig_lav}")
+
+
+
+"------------------"
 # Visualisering:
 plt.figure(figsize=(14, 6))
 
@@ -244,7 +292,12 @@ plt.axvline(
     linestyle=":",
     label="Starten på 2025",
 )
+
+plt.axhline(y=90, color='r', linestyle='-', label="Høyt nivå")
+
 plt.grid(True, linestyle="--", alpha=0.5)
 plt.legend()
 plt.tight_layout()
 plt.show()
+
+"https://stackoverflow.com/questions/33382619/plot-a-horizontal-line-on-a-given-plot"
