@@ -119,6 +119,7 @@ final_modell.fit(X_final, y_final)
 #print("\n--- Test (2026) ---")
 #print("MAE:", mean_absolute_error(y_test, test_prediksjoner))
 #print("R2:", r2_score(y_test, test_prediksjoner))
+#print("RMSE:", root_mean_squared_error(y_test, test_prediksjoner))
 
 #Graf
 #import matplotlib.pyplot as plt
