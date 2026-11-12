@@ -74,7 +74,7 @@ target = "bjørk_snitt"
 daglig = daglig.dropna(subset=features + [target]).reset_index(drop=True)
 
 #Bjørk sesong er mars og april. Vi ønsker å predikere pollennivåene i denne perioden, så vi filtrerer ut alle andre måneder.
-bjørk_sesong = daglig[daglig["dato"].dt.month.between(3, 4)]
+bjørk_sesong = daglig[daglig["dato"].dt.month.between(3, 5)]
 
 #Del opp i trening-, validering- og testsett. Dette deles opp etter år
 bjørk_sesong["år"] = bjørk_sesong["dato"].dt.year
