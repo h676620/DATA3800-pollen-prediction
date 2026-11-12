@@ -60,7 +60,7 @@ print(df.head(40))
 
 avg_gress = df.groupby("dato")["Gress"].agg(gress_mean ='mean', gress_sum = 'sum', gress_count ='count')
 
-avg_sun = df.groupby("dato")["Sol (minutt)"].agg(sol_mean ='mean', sol_sum = 'sum', sol_count ='count')
+avg_total_sun = df.groupby("dato")["Sol (minutt)"].agg(sol_mean ='mean', sol_sum = 'sum', sol_count ='count')
 
 avg_temp = df.groupby("dato")["LuftTemp"].agg(temp_mean ='mean', temp_sum = 'sum', temp_count ='count')
 
@@ -72,17 +72,25 @@ avg_luftfuktighet = df.groupby("dato")["LuftFuktighet"].agg(luftfukt_mean ='mean
 
 avg_dagnr = df.groupby("dato")["day_date"].first().rename("dagnr")
 
-average_gress = pd.concat([avg_dagnr, avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
+average_gress = pd.concat([avg_dagnr, avg_gress, avg_total_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet], axis=1) 
 
 avg_dagnr = df.groupby("dato")["day_date"].first().rename("dagnr")
-avg_bjork = avg_gress[avg_gress['gress_count']>=20]
-avg_sun = avg_sun[avg_sun["sol_count"] >= 20]
+avg_gress = avg_gress[avg_gress['gress_count']>=20]
+
+pollen_igår = (
+    avg_gress["gress_mean"]  # Bytt til kolonnen med selve pollenverdien hvis dette er en målingsteller
+    .where(avg_gress["gress_count"] >= 20)
+    .shift(1)
+    .rename("pollen_igår")
+)
+
+total_sun = avg_total_sun[avg_total_sun["sol_sum"] >= 20] #fiks dette
 avg_temp = avg_temp[avg_temp["temp_count"] >= 20]
 avg_regn = avg_regn[avg_regn["regn_count"] >= 20]
 avg_vind = avg_vind[avg_vind["vind_count"] >= 20]
 avg_luftfuktighet = avg_luftfuktighet[avg_luftfuktighet["luftfukt_count"] >= 20]
 
-average_gress = pd.concat([avg_dagnr, avg_gress, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet ], axis=1) 
+average_gress = pd.concat([avg_dagnr, avg_gress, pollen_igår, total_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet ], axis=1) 
 
 "---------------End of table cleaning -----------------------"
 
@@ -101,7 +109,7 @@ average_gress["kalender_dag"] = pd.to_datetime(average_gress.index).day
 average_gress["mnd"] = pd.to_datetime(average_gress.index).month
 average_gress["år"] = pd.to_datetime(average_gress.index).year
 
-features = ['sol_mean', 'temp_mean', 'regn_mean', 'vind_mean', 'luftfukt_mean', 'dagnr']
+features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår' ]
 target = 'gress_mean'
 
 print("Før dropna:", len(average_gress))
@@ -165,6 +173,7 @@ final_model.fit(
 )
 
 
+
 predictions_2026 = final_model.predict(test_2026[features])
 predictions_2026 = np.maximum(predictions_2026, 0)
 
@@ -182,7 +191,7 @@ print(f"RMSE for 2025: {rmse:.2f}")
 test_dates = pd.to_datetime(test_2026.index)
 
 # periode
-periode = (test_dates >= "2026-05-01") & (test_dates <= "2026-09-01")
+periode = (test_dates >= "2026-04-01") & (test_dates <= "2026-09-09")
 
 
 y_test_periode = y_test.iloc[periode]

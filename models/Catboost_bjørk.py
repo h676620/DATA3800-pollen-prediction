@@ -59,7 +59,7 @@ print(df.head(40))
 avg_bjork = df.groupby("dato")["Bjørk"].agg(bjørk_mean ='mean', bjørk_sum = 'sum', bjørk_count ='count')
 
 
-avg_sun = df.groupby("dato")["Sol (minutt)"].agg(sol_mean ='mean', sol_sum = 'sum', sol_count ='count')
+avg_total_sun = df.groupby("dato")["Sol (minutt)"].agg(sol_mean ='mean', sol_sum = 'sum', sol_count ='count')
 
 
 avg_temp = df.groupby("dato")["LuftTemp"].agg(temp_mean ='mean', temp_sum = 'sum', temp_count ='count')
@@ -72,10 +72,18 @@ avg_vind = df.groupby("dato")["Vind (m/s?)"].agg(vind_mean ='mean', vind_sum = '
 
 avg_luftfuktighet = df.groupby("dato")["LuftFuktighet"].agg(luftfukt_mean ='mean', luftfukt_sum = 'sum', luftfukt_count ='count')
 
-
 avg_dagnr = df.groupby("dato")["day_date"].first().rename("dagnr")
+
+pollen_igår = (
+    avg_bjork["bjørk_mean"]  # Bytt til kolonnen med selve pollenverdien hvis dette er en målingsteller
+    .where(avg_bjork["bjørk_count"] >= 20)
+    .shift(1)
+    .rename("pollen_igår")
+)
+
 avg_bjork = avg_bjork[avg_bjork['bjørk_count']>=20]
-avg_sun = avg_sun[avg_sun["sol_count"] >= 20]
+
+total_sun = avg_total_sun[avg_total_sun["sol_sum"] >= 20] #fiks dette
 avg_temp = avg_temp[avg_temp["temp_count"] >= 20]
 avg_regn = avg_regn[avg_regn["regn_count"] >= 20]
 avg_vind = avg_vind[avg_vind["vind_count"] >= 20]
@@ -83,8 +91,9 @@ avg_luftfuktighet = avg_luftfuktighet[
     avg_luftfuktighet["luftfukt_count"] >= 20
 ]
 
-average_bjørk = pd.concat([avg_dagnr, avg_bjork, avg_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet ], axis=1) 
-print(average_bjørk.sample(10))
+average_bjørk = pd.concat([avg_dagnr, avg_bjork, pollen_igår, total_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet ], axis=1) 
+print(average_bjørk.iloc[60:81])
+"print(average_bjørk.head(10))"
 "print(average_bjørk[average_bjørk.isna().any(axis=1)])"
 
 "---------------End of table cleaning -----------------------"
@@ -100,11 +109,21 @@ print("Rader ved starten:", len(average_bjørk))
 print("Kolonner:", average_bjørk.columns.tolist())
 
 # Tidsfeatures
-average_bjørk["kalender_dag"] = pd.to_datetime(average_bjørk.index).day
-average_bjørk["mnd"] = pd.to_datetime(average_bjørk.index).month
 average_bjørk["år"] = pd.to_datetime(average_bjørk.index).year
+#Tidligere val: features = ['sol_mean', 'temp_mean', 'regn_mean', 'vind_mean', 'luftfukt_mean', 'dagnr']
 
-features = ['sol_mean', 'temp_mean', 'regn_mean', 'vind_mean', 'luftfukt_mean', 'dagnr']
+"""værkolonner = ["temp_mean", "luftfukt_mean", "sol_sum"]
+
+for kol in værkolonner:
+    average_bjørk[f"{kol}_i_går"] = average_bjørk[kol].shift(1)"""
+
+features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår' ]
+"""features = [
+    "temp_mean_i_går",
+    "luftfukt_mean_i_går",
+    "sol_sum_i_går",
+    "pollen_igår",
+]"""
 target = 'bjørk_mean'
 
 print("Før dropna:", len(average_bjørk))
@@ -168,6 +187,23 @@ final_model.fit(
     train_final[target]
 )
 
+# Prediksjoner på valideringsdataene fra 2024
+predictions_2024 = model_for_validation.predict(val_2024[features])
+predictions_2024 = np.maximum(predictions_2024, 0)
+
+y_val_2024 = val_2024[target]
+
+mae_2024 = mean_absolute_error(y_val_2024, predictions_2024)
+rmse_2024 = np.sqrt(mean_squared_error(y_val_2024, predictions_2024))
+
+"""TRENGER FÆRRE DAGER FOR VAl"""
+
+
+print(f"Antall dager i valideringen 2024: {len(val_2024)}")
+print(f"MAE for 2024: {mae_2024:.2f}")
+print(f"RMSE for 2024: {rmse_2024:.2f}")
+print(f"Beste iterasjon: {model_for_validation.get_best_iteration() + 1}")
+
 
 predictions_2025 = final_model.predict(test_2025[features])
 predictions_2025 = np.maximum(predictions_2025, 0)
@@ -186,7 +222,7 @@ print(f"RMSE for 2025: {rmse:.2f}")
 test_dates = pd.to_datetime(test_2025.index)
 
 # periode
-periode = (test_dates >= "2025-03-01") & (test_dates <= "2025-05-10")
+periode = (test_dates >= "2025-03-01") & (test_dates <= "2025-05-31")
 
 
 y_test_periode = y_test.iloc[periode]
@@ -196,8 +232,8 @@ mae_periode = mean_absolute_error(y_test_periode, predictions_periode)
 rmse_periode = np.sqrt(mean_squared_error(y_test_periode, predictions_periode))
 
 print(f"Antall dager i perioden: {periode.sum()}")
-print(f"MAE (1. mars–10. mai 2025): {mae_periode:.2f}")
-print(f"RMSE (1. mars–10. mai 2025): {rmse_periode:.2f}")
+print(f"MAE (1. mars–31. mai 2025): {mae_periode:.2f}")
+print(f"RMSE (1. mars–31. mai 2025): {rmse_periode:.2f}")
 
 typisk_pollenverdi = y_test_periode.mean()
 
@@ -229,7 +265,7 @@ sammenligningstabell = pd.DataFrame({
 høy_mask = sammenligningstabell["målt_pollen"] >= 90
 
 if høy_mask.any():
-    mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
+    mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy_mask, "målt_pollen"], sammenligningstabell.loc[høy_mask, "predikert_pollen"])
     rmse_høy_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
     )
     print(f"Antall dager i perioden: {periode.sum()}")
