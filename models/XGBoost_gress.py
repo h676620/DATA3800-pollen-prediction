@@ -111,7 +111,7 @@ modell_data = daglig_gyldige[
 modell_data = modell_data.drop(columns=["i_går"])
 
 
-# Beholder gresspollensesongen: mai - august: ny (april-september)
+# Beholder gresspollensesongen: april-september
 gress_sesong = modell_data[
     modell_data["dato"].dt.month.between(4, 9)
 ].copy()
