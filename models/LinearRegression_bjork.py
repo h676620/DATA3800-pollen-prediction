@@ -45,15 +45,13 @@ MIN_MALINGER = 20
 gyldig = (
     (daglig["bjørk_antall"] >= MIN_MALINGER) &
     (daglig["temp_antall"] >= MIN_MALINGER) &
-    (daglig["vind_antall"] >= MIN_MALINGER) &
     (daglig["luftfukt_antall"] >= MIN_MALINGER) &
-    (daglig["nedbør_antall"] >= MIN_MALINGER) &
     (daglig["solskinn_antall"] >= MIN_MALINGER)
 )
 print(f"Antall gyldige dager etter filtrering: {gyldig.sum()} av {len(daglig)}")
 
 #Ugyldige dager blir gjort om til NaN i stedet for at de fjernes, slik at "i går" alltid er den faktiske forrige kalenderdagen
-verdi_kolonner = ["bjørk_snitt", "temp_snitt", "vind_snitt", "luftfukt_snitt", "nedbør_sum", "solskinn_sum"]
+verdi_kolonner = ["bjørk_snitt", "temp_snitt", "luftfukt_snitt", "solskinn_sum"]
 daglig.loc[~gyldig, verdi_kolonner] = np.nan
 daglig = daglig.set_index("dato")[verdi_kolonner].asfreq("D").reset_index()
 
@@ -65,7 +63,7 @@ daglig = daglig.sort_values("dato").reset_index(drop=True)
 daglig["bjørk_i_går"] = daglig["bjørk_snitt"].shift(1)
 
 #Feautures som skal brukes
-features = ["dag_i_året", "temp_snitt", "vind_snitt", "luftfukt_snitt", "nedbør_sum", "solskinn_sum", "bjørk_i_går"]
+features = ["temp_snitt", "luftfukt_snitt", "solskinn_sum", "bjørk_i_går"]
 
 #Target = dagens pollennivåer
 target = "bjørk_snitt"
@@ -73,7 +71,7 @@ target = "bjørk_snitt"
 #Fjerner dager der noe mangler. GJør dette fordi LinearRegression ikke kan håndtere NaN-verdier. Tidligere i koden endret vi ugyldige dager til Nan, men dette var bare for at det skulle gi riktig "i går", men vi trenger ikke de til noe annet. 
 daglig = daglig.dropna(subset=features + [target]).reset_index(drop=True)
 
-#Bjørk sesong er mars og april. Vi ønsker å predikere pollennivåene i denne perioden, så vi filtrerer ut alle andre måneder.
+#Bjørk sesong er fra mars til mai. Vi ønsker å predikere pollennivåene i denne perioden, så vi filtrerer ut alle andre måneder.
 bjørk_sesong = daglig[daglig["dato"].dt.month.between(3, 5)]
 
 #Del opp i trening-, validering- og testsett. Dette deles opp etter år
@@ -105,8 +103,18 @@ print("RMSE:", root_mean_squared_error(y_validering, validering_prediksjoner))
 #Snitt pollen i valideringperioden, for å vurdere hvor stor MAE er i forhold til gjennomsnittlig pollennivå. Dette gir oss en bedre forståelse av hvor godt modellen predikerer pollennivåene.
 print("Snitt pollen i valideringen:", y_validering.mean())
 
-#Sammenligningsmodell (baseline) som predikerer at dagens pollennivå er det samme som gårsdagens pollennivå. Dette er en enkel modell som vi kan bruke for å vurdere hvor mye bedre vår lineære regresjonsmodell er.
-print("MAE hvis vi finner ut av gårsdagens pollennivå", mean_absolute_error(y_validering, X_validering["bjørk_i_går"]))
+#sjekker hvor bra modellen er til å predikere høye pollennivåer.
+grense = 90
+faktisk_høy = (y_validering > grense).to_numpy()
+prediksjon_høy = validering_prediksjoner > grense
+
+treff = (faktisk_høy & prediksjon_høy).sum()
+bom = (faktisk_høy & ~prediksjon_høy).sum()
+falsk_alarm = (~faktisk_høy & prediksjon_høy).sum()
+
+print(f"Dager over {grense} : {faktisk_høy.sum()}")
+print(f"Modellen traff {treff} av dem ({treff / faktisk_høy.sum() :.0%})")
+print(f"Falske alarmer: {falsk_alarm}") 
 
 #Tren modellen på både trenings- og valideringssettet.
 X_final = pd.concat([X_trening, X_validering])
@@ -115,25 +123,26 @@ final_modell = LinearRegression()
 final_modell.fit(X_final, y_final)
 
 # Evaluer deretter med testsettet. Skal gjøres til slutt, kun en gang. 
-#test_prediksjoner = final_modell.predict(X_test)
-#print("\n--- Test (2025) ---")
-#print("MAE:", mean_absolute_error(y_test, test_prediksjoner))
-#print("R2:", r2_score(y_test, test_prediksjoner))
-#print("RMSE:", root_mean_squared_error(y_test, test_prediksjoner))
+test_prediksjoner = final_modell.predict(X_test)
+print("\n--- Test (2025) ---")
+print("MAE:", mean_absolute_error(y_test, test_prediksjoner))
+print("R2:", r2_score(y_test, test_prediksjoner))
+print("RMSE:", root_mean_squared_error(y_test, test_prediksjoner))
 
 #Graf
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-#plt.figure(figsize=(12, 5))
-#plt.plot(test["dato"], y_test, label="Faktisk pollen")
-#plt.plot(test["dato"], test_prediksjoner, label="Predikert pollen")
-#plt.xlabel("Dato")
-#plt.ylabel("Bjørkepollen")
-#plt.title("Pollenprediksjon")
-#plt.legend()
-#plt.tight_layout()
-#plt.savefig("Linear_regression_bjørk.png", dpi=150)
-#plt.show()
+plt.figure(figsize=(12, 5))
+plt.plot(test["dato"], y_test, label="Faktisk pollen")
+plt.plot(test["dato"], test_prediksjoner, label="Predikert pollen")
+plt.xlabel("Dato")
+plt.ylabel("Bjørkepollen")
+plt.title("Pollenprediksjon")
+plt.axhline(90, color='red', linestyle='--', label='Grense (90)')
+plt.legend()
+plt.tight_layout()
+plt.savefig("Linear_regression_bjørk.png", dpi=150)
+plt.show()
 
 #Koefissientene
 print("\n--- Koefissienter ---")
