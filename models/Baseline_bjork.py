@@ -88,8 +88,8 @@ print("R2:", r2_score(y_validering, validering_prediksjoner))
 print("RMSE:", root_mean_squared_error(y_validering, validering_prediksjoner))
 
 #Baseline for testsettet (2025)
-#test_prediksjoner = test["bjørk_i_går"]
-#print(f"\n--- Baseline (gjetter gårsdagen), test (2025) ---")
-#print("MAE:", mean_absolute_error(y_test, test_prediksjoner))
-#print("R2:", r2_score(y_test, test_prediksjoner))
-#print("RMSE:", root_mean_squared_error(y_test, test_prediksjoner))
+test_prediksjoner = test["bjørk_i_går"]
+print(f"\n--- Baseline (gjetter gårsdagen), test (2025) ---")
+print("MAE:", mean_absolute_error(y_test, test_prediksjoner))
+print("R2:", r2_score(y_test, test_prediksjoner))
+print("RMSE:", root_mean_squared_error(y_test, test_prediksjoner))
