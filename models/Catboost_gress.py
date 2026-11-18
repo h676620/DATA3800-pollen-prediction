@@ -109,7 +109,7 @@ average_gress["kalender_dag"] = pd.to_datetime(average_gress.index).day
 average_gress["mnd"] = pd.to_datetime(average_gress.index).month
 average_gress["år"] = pd.to_datetime(average_gress.index).year
 
-features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår' ]
+features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår', 'dagnr' ]
 target = 'gress_mean'
 
 print("Før dropna:", len(average_gress))
@@ -172,7 +172,28 @@ final_model.fit(
     train_final[target]
 )
 
+predictions_2025 = model_for_validation.predict(val_2025[features])
+predictions_2025 = np.maximum(predictions_2025, 0)
 
+y_val_2025 = val_2025[target]
+
+val_dates_2025 = pd.to_datetime(val_2025.index)
+periode_2025 = (
+    (val_dates_2025 >= "2025-03-01") &
+    (val_dates_2025 <= "2025-05-31")
+)
+
+predictions_2025 = predictions_2025[periode_2025]
+y_val_2025 = y_val_2025.iloc[periode_2025]
+
+
+mae_2025 = mean_absolute_error(y_val_2025, predictions_2025)
+rmse_2025 = np.sqrt(mean_squared_error(y_val_2025, predictions_2025))
+
+print(f"Antall dager i valideringen 2025: {len(y_val_2025)}")
+print(f"MAE for 2025: {mae_2025:.2f}")
+print(f"RMSE for 2025: {rmse_2025:.2f}")
+print(f"Beste iterasjon: {model_for_validation.get_best_iteration() + 1}")
 
 predictions_2026 = final_model.predict(test_2026[features])
 predictions_2026 = np.maximum(predictions_2026, 0)

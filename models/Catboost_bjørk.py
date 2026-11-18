@@ -117,7 +117,7 @@ average_bjørk["år"] = pd.to_datetime(average_bjørk.index).year
 for kol in værkolonner:
     average_bjørk[f"{kol}_i_går"] = average_bjørk[kol].shift(1)"""
 
-features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår' ]
+features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår', 'dagnr' ]
 """features = [
     "temp_mean_i_går",
     "luftfukt_mean_i_går",
@@ -187,11 +187,22 @@ final_model.fit(
     train_final[target]
 )
 
+
 # Prediksjoner på valideringsdataene fra 2024
 predictions_2024 = model_for_validation.predict(val_2024[features])
 predictions_2024 = np.maximum(predictions_2024, 0)
 
 y_val_2024 = val_2024[target]
+
+val_dates_2024 = pd.to_datetime(val_2024.index)
+periode_2024 = (
+    (val_dates_2024 >= "2024-03-01") &
+    (val_dates_2024 <= "2024-05-31")
+)
+
+predictions_2024 = predictions_2024[periode_2024]
+y_val_2024 = y_val_2024.iloc[periode_2024]
+
 
 mae_2024 = mean_absolute_error(y_val_2024, predictions_2024)
 rmse_2024 = np.sqrt(mean_squared_error(y_val_2024, predictions_2024))
@@ -199,7 +210,7 @@ rmse_2024 = np.sqrt(mean_squared_error(y_val_2024, predictions_2024))
 """TRENGER FÆRRE DAGER FOR VAl"""
 
 
-print(f"Antall dager i valideringen 2024: {len(val_2024)}")
+print(f"Antall dager i valideringen 2024: {len(y_val_2024)}")
 print(f"MAE for 2024: {mae_2024:.2f}")
 print(f"RMSE for 2024: {rmse_2024:.2f}")
 print(f"Beste iterasjon: {model_for_validation.get_best_iteration() + 1}")
