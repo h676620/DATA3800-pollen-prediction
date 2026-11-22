@@ -252,32 +252,127 @@ sammenligningstabell = pd.DataFrame({
 
 """mae_høy_pollen = mean_absolute_error(sammenligningstabell["predikert_pollen_cat"], sammenligningstabell["målt_pollen_cat"])"""
 
-høy_mask = sammenligningstabell["målt_pollen"] >= 20
+none_mask = sammenligningstabell["målt_pollen"] == 0
+low_mask = sammenligningstabell["målt_pollen"].between(1, 19, inclusive="both") 
+medium_mask = sammenligningstabell["målt_pollen"].between(20, 49, inclusive="both") 
+høy_mask = sammenligningstabell["målt_pollen"] >= 50
 
+# Beregner null pollennivå:
+if none_mask.any():
+    mae_none_pollen = mean_absolute_error(sammenligningstabell.loc[none_mask, "målt_pollen"], sammenligningstabell.loc[none_mask, "predikert_pollen"])
+    rmse_none_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[none_mask, "målt_pollen"],sammenligningstabell.loc[none_mask, "predikert_pollen"])
+    )
+    print(f"NULL:")
+    print(f"Antall dager i perioden: {periode.sum()}")
+    print(f"Antall dager i rmse perioden: {none_mask.sum()}")
+    print(f"Null pollen MAE: {mae_none_pollen:.2f}")
+    print(f"Null pollen RMSE: {rmse_none_pollen:.2f}")
+else:
+    print("Ingen dager med manglende pollenverdier på 0 i perioden.")
+
+faktisk_none = sammenligningstabell["målt_pollen"] == 0
+predikert_none = sammenligningstabell["predikert_pollen"] == 0
+
+treff = (faktisk_none & predikert_none).sum()
+falsk_alarm = (~faktisk_none & predikert_none).sum()
+bommet = (faktisk_none & ~predikert_none).sum()
+riktig_ikke_null = (~faktisk_none & ~predikert_none).sum()
+
+print(f"Målt og predikert pollen = 0 (treff): {treff}")
+print(f"Predikert 0, men målt ulik 0 (falsk alarm): {falsk_alarm}")
+print(f"Målt 0, men predikert ulik 0 (bom): {bommet}")
+print(f"Målt og predikert ulik 0: {riktig_ikke_null}")
+# slutt null nivå
+
+
+# Beregner lavt pollennivå:
+if low_mask.any():
+    y_true = sammenligningstabell.loc[low_mask, "målt_pollen"]
+    y_pred = sammenligningstabell.loc[low_mask, "predikert_pollen"]
+
+    mae_low_pollen = mean_absolute_error(y_true, y_pred)
+    rmse_low_pollen = np.sqrt(mean_squared_error(y_true, y_pred))
+
+    print(f"LOW:")
+    print(f"Antall dager i perioden: {periode.sum()}")
+    print(f"Antall dager med målt pollen mellom 1 og 10: {low_mask.sum()}")
+    print(f"Lavt pollen MAE: {mae_low_pollen:.2f}")
+    print(f"Lavt pollen RMSE: {rmse_low_pollen:.2f}")
+else:
+    print("Ingen dager med målt pollenverdi mellom 1 og 10.")
+
+faktisk_low = sammenligningstabell["målt_pollen"].between(1, 10, inclusive="both")
+predikert_low = sammenligningstabell["predikert_pollen"].between(1, 10, inclusive="both")
+
+treff = (faktisk_low & predikert_low).sum()
+falsk_alarm = (~faktisk_low & predikert_low).sum()
+bommet = (faktisk_low & ~predikert_low).sum()
+riktig_ikke_low = (~faktisk_low & ~predikert_low).sum()
+
+print(f"Målt og predikert pollen mellom 1 og 10 (treff): {treff}")
+print(f"Predikert 1–10, men målt utenfor intervallet (falsk alarm): {falsk_alarm}")
+print(f"Målt 1–10, men predikert utenfor intervallet (bom): {bommet}")
+print(f"Målt og predikert utenfor intervallet 1–10: {riktig_ikke_low}")
+# slutt lavt nivå
+
+# Beregner medium pollennivå:
+if medium_mask.any():
+    y_true = sammenligningstabell.loc[medium_mask, "målt_pollen"]
+    y_pred = sammenligningstabell.loc[medium_mask, "predikert_pollen"]
+
+    mae_medium_pollen = mean_absolute_error(y_true, y_pred)
+    rmse_medium_pollen = np.sqrt(mean_squared_error(y_true, y_pred))
+
+    print(f"MEDIUM:")
+    print(f"Antall dager i perioden: {periode.sum()}")
+    print(f"Antall dager med målt pollen mellom 11–69: {medium_mask.sum()}")
+    print(f"Lavt pollen MAE: {mae_medium_pollen:.2f}")
+    print(f"Lavt pollen RMSE: {rmse_medium_pollen:.2f}")
+else:
+    print("Ingen dager med målt pollenverdi mellom 11 og 69.")
+
+faktisk_medium = sammenligningstabell["målt_pollen"].between(11, 69, inclusive="both")
+predikert_medium = sammenligningstabell["predikert_pollen"].between(11, 69, inclusive="both")
+
+treff = (faktisk_medium & predikert_medium).sum()
+falsk_alarm = (~faktisk_medium & predikert_medium).sum()
+bommet = (faktisk_medium & ~predikert_medium).sum()
+riktig_ikke_medium = (~faktisk_medium & ~predikert_medium).sum()
+
+print(f"Målt og predikert pollen mellom 11–69 (treff): {treff}")
+print(f"Predikert 11–69, men målt utenfor intervallet (falsk alarm): {falsk_alarm}")
+print(f"Målt 11–69, men predikert utenfor intervallet (bom): {bommet}")
+print(f"Målt og predikert utenfor intervallet 11–69: {riktig_ikke_medium}")
+# slutt medium nivå
+
+# Beregner høy pollennivå:
 if høy_mask.any():
-    mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
+    mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy_mask, "målt_pollen"], sammenligningstabell.loc[høy_mask, "predikert_pollen"])
     rmse_høy_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
     )
+    print(f"HIGH:")
     print(f"Antall dager i perioden: {periode.sum()}")
     print(f"Antall dager i rmse perioden: {høy_mask.sum()}")
     print(f"Høy pollen MAE: {mae_høy_pollen:.2f}")
     print(f"Høy pollen RMSE: {rmse_høy_pollen:.2f}")
 else:
-    print("Ingen dager med målt pollenverdi på minst 20 i perioden.")
+    print("Ingen dager med målt pollenverdi på minst 70 i perioden.")
 
 
-faktisk_høy = sammenligningstabell["målt_pollen"] >= 20
-predikert_høy = sammenligningstabell["predikert_pollen"] >= 20
+faktisk_høy = sammenligningstabell["målt_pollen"] >= 70
+predikert_høy = sammenligningstabell["predikert_pollen"] >= 70
 
 treff = (faktisk_høy & predikert_høy).sum()
 falsk_alarm = (~faktisk_høy & predikert_høy).sum()
 bommet_toppdag = (faktisk_høy & ~predikert_høy).sum()
 riktig_lav = (~faktisk_høy & ~predikert_høy).sum()
 
-print(f"Faktisk og predikert >= 20 (treff): {treff}")
-print(f"Predikert >= 20, men målt < 20 (falske alarmer): {falsk_alarm}")
-print(f"Målt >= 20, men predikert < 20 (bommet toppdag): {bommet_toppdag}")
-print(f"Både målt og predikert < 20: {riktig_lav}")
+print(f"Faktisk og predikert >= 70 (treff): {treff}")
+print(f"Predikert >= 70, men målt < 70 (falske alarmer): {falsk_alarm}")
+print(f"Målt >= 70, men predikert < 70 (bommet toppdag): {bommet_toppdag}")
+print(f"Både målt og predikert < 70: {riktig_lav}")
+# slutt høy nivå
+
 
 "---sjekk for overtilpassing , lekasjer osv.. ---"
 
