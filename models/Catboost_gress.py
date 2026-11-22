@@ -416,7 +416,8 @@ plt.axvline(
     label="Starten på 2026",
 )
 
-plt.axhline(y=20, color='r', linestyle='-', label="Høyt nivå")
+plt.axhline(y=20, color='orange', linestyle='-', label="Medium nivå")
+plt.axhline(y=50, color='red', linestyle='-', label="Høyt nivå")
 
 plt.grid(True, linestyle="--", alpha=0.5)
 plt.legend()
