@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, timedelta
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -394,6 +395,22 @@ print(f"Målt >= 70, men predikert < 70 (bommet toppdag): {bommet_toppdag}")
 print(f"Både målt og predikert < 70: {riktig_lav}")
 # slutt høy nivå
 
+
+########
+# Lagre ferdigberegnede prediksjoner med dato, slik at server.py kan slå dem opp.
+pollen_predictions = pd.DataFrame({
+    "date": pd.to_datetime(test_2025.index).strftime("%d.%m.%Y"),
+    "pollen_type": "Bjørk",
+    "pollen_level": predictions_2025,
+})
+
+pollen_predictions.to_csv(
+    "pollen_predictions.csv",
+    index=False,
+    encoding="utf-8",
+)
+
+print("Lagret ferdige prediksjoner i pollen_predictions.csv")
 
 "------------------"
 # Visualisering:

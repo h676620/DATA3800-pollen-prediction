@@ -2,22 +2,21 @@ import requests
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
+import requests
+from google import genai
+from google.genai import types
+from pydantic import BaseModel
 
 SERVICE = "http://127.0.0.1:8000"
 MODEL = "gemini-3.5-flash-lite"
 
 
-# Every field may come back empty, and there is one extra field for the
-# model to ask a question when it does not know something yet.
-class Pollen(BaseModel):
-    pollen_type: str | None = None
+class PollenRequest(BaseModel):
     today_date: str | None = None
-    location: str | None = None
+    pollen_type: str | None = None
     question: str | None = None
 
 
-# Google answers 503 when a model is busy. The library does not retry
-# unless you ask it to, so ask it to.
 client = genai.Client(
     http_options=types.HttpOptions(
         retry_options=types.HttpRetryOptions(attempts=5)
@@ -26,32 +25,26 @@ client = genai.Client(
 
 config = types.GenerateContentConfig(
     system_instruction=(
-        "You predict pollen levels. Fill in what the person has told"
-        "you and leave everything else null. Never guess a value. "
-        "Pollen types are capitalised as Bjørk and Gress"
-        "The date for today is any date the user inputs"
-        "Location is capitalized as Zurich"
-        "If any field is still null, put one short "
-        "question in 'question' asking for the single most important "
-        "thing you still need, and ask for nothing else. If you "
-        "already asked for that same thing and did not get it, ask "
-        "again in different words and say why you need it. "
-        "When every field is filled, leave 'question' null. On a "
-        "follow up, keep everything you already know and change only "
-        "what the person just said."
+        "Hent ut dato og pollentype som brukeren oppgir. "
+        "Datoformatet skal være DD.MM.YYYY, for eksempel 12.04.2025. "
+        "Pollentypen som støttes er Bjørk. Ikke finn på opplysninger. "
+        "Hvis dato eller pollentype mangler, still ett kort spørsmål "
+        "om én manglende opplysning. Når begge er oppgitt, skal question "
+        "være null. På oppfølgingsmeldinger skal du beholde opplysninger "
+        "fra tidligere meldinger."
     ),
     response_mime_type="application/json",
-    response_schema=Pollen,
+    response_schema=PollenRequest,
 )
 
 history = []
 
 
-def price(question_text):
+def get_forecast(message: str):
     history.append(
         types.Content(
             role="user",
-            parts=[types.Part.from_text(text=question_text)],
+            parts=[types.Part.from_text(text=message)],
         )
     )
 
@@ -62,47 +55,48 @@ def price(question_text):
     )
     history.append(reply.candidates[0].content)
 
-    pollen = Pollen.model_validate_json(reply.text)
-    fields = pollen.model_dump(exclude={"question"})
+    pollen_request = PollenRequest.model_validate_json(reply.text)
 
-    if car.question or any(value is None for value in fields.values()):
-        return car, None  # Not enough to price yet.
+    if (
+        pollen_request.question
+        or pollen_request.today_date is None
+        or pollen_request.pollen_type is None
+    ):
+        return pollen_request, None
 
-    answer = requests.post(
+    response = requests.post(
         f"{SERVICE}/predict",
-        json=fields,
+        json={
+            "today_date": pollen_request.today_date,
+            "pollen_type": pollen_request.pollen_type,
+        },
         timeout=10,
     )
-    answer.raise_for_status()
-    return car, answer.json()
+    response.raise_for_status()
+
+    return pollen_request, response.json()
 
 
 if __name__ == "__main__":
-    print("Tell me about the car. Empty line to stop.\n")
+    print("Skriv inn dato og pollentype, for eksempel «Bjørk 12.04.2025».")
+    print("Trykk Enter på en tom linje for å avslutte.\n")
 
     while True:
-        said = input("you: ")
+        message = input("du: ")
 
-        if not said.strip():
+        if not message.strip():
             break
 
-        car, answer = price(said)
-        shown = car.model_dump(exclude={"question"})
-        known = {key: value for key, value in shown.items() if value is not None}
-        missing = [key for key, value in shown.items() if value is None]
-
-        print(" so far: ", known)
-
-        if missing:
-            print(" missing:", ", ".join(missing))
+        pollen_request, answer = get_forecast(message)
 
         if answer is None:
-            print("bot: ", car.question or "I need a little more.")
-            print()
+            print("bot:", pollen_request.question or "Jeg trenger litt mer informasjon.")
         else:
-            print(
-                "bot: that comes out at",
-                answer["selling_price_lakhs"],
-                "lakhs",
-            )
-            print()
+            print("bot: Prediksjoner:")
+            for day in answer["forecast"]:
+                print(
+                    f"  {day['date']}: "
+                    f"{day['pollen_type']} – {day['pollen_level']:.2f}"
+                )
+
+        print()
