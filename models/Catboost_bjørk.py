@@ -113,10 +113,6 @@ print("Kolonner:", average_bjørk.columns.tolist())
 average_bjørk["år"] = pd.to_datetime(average_bjørk.index).year
 #Tidligere val: features = ['sol_mean', 'temp_mean', 'regn_mean', 'vind_mean', 'luftfukt_mean', 'dagnr']
 
-"""værkolonner = ["temp_mean", "luftfukt_mean", "sol_sum"]
-
-for kol in værkolonner:
-    average_bjørk[f"{kol}_i_går"] = average_bjørk[kol].shift(1)"""
 
 features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår', 'dagnr' ]
 """features = [
@@ -270,194 +266,220 @@ sammenligningstabell = pd.DataFrame({
     "dato": test_dates[periode],
     "predikert_pollen": prediksjoner.iloc[periode].to_numpy(),
     "målt_pollen": y_test.iloc[periode].to_numpy(),
+    "predikert_nivå" : None,
 })
+
 
 """mae_høy_pollen = mean_absolute_error(sammenligningstabell["predikert_pollen_cat"], sammenligningstabell["målt_pollen_cat"])"""
 
-none_mask = sammenligningstabell["målt_pollen"] == 0
+none_mask = sammenligningstabell["målt_pollen"]  == 0
 low_mask = sammenligningstabell["målt_pollen"].between(1, 10, inclusive="both") 
 medium_mask = sammenligningstabell["målt_pollen"].between(11, 69, inclusive="both") 
 høy_mask = sammenligningstabell["målt_pollen"] >= 70
 
+none_mask_pred = sammenligningstabell["predikert_pollen"]  == 0
+low_mask_pred = sammenligningstabell["predikert_pollen"].between(1, 10, inclusive="both") 
+medium_mask_pred = sammenligningstabell["predikert_pollen"].between(11, 69, inclusive="both") 
+høy_mask_pred = sammenligningstabell["predikert_pollen"] >= 70
+
+i = 0
+
+while i < len(sammenligningstabell):
+    if none_mask.iloc[i]:
+        sammenligningstabell.loc[i, "predikert_nivå"] = "NONE"
+    elif low_mask.iloc[i]:
+        sammenligningstabell.loc[i, "predikert_nivå"] = "LOW"
+    elif medium_mask.iloc[i]:
+        sammenligningstabell.loc[i, "predikert_nivå"] = "MEDIUM"
+    elif høy_mask.iloc[i]:
+        sammenligningstabell.loc[i, "predikert_nivå"] = "HIGH"
+
+    i += 1
+
+print("SAMMENLIGNING:")
+print(sammenligningstabell.sample(10))
+
+
+def predict_pollen(today_date: str):
+    return {
+        "Dato": sammenligningstabell.index.astype(str).tolist(),
+        "Pollen-nivå": sammenligningstabell["predikert_nivå"].tolist(),
+    }
+
+
+
+
+
+#### PRINTER UT MAE OG RMSE FOR FORSKJELLIGE POLLENNIVÅER #####
 # Beregner null pollennivå:
-if none_mask.any():
-    mae_none_pollen = mean_absolute_error(sammenligningstabell.loc[none_mask, "målt_pollen"], sammenligningstabell.loc[none_mask, "predikert_pollen"])
-    rmse_none_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[none_mask, "målt_pollen"],sammenligningstabell.loc[none_mask, "predikert_pollen"])
+if __name__ == "__main__":
+    if none_mask.any():
+        mae_none_pollen = mean_absolute_error(sammenligningstabell.loc[none_mask, "målt_pollen"], sammenligningstabell.loc[none_mask, "predikert_pollen"])
+        rmse_none_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[none_mask, "målt_pollen"],sammenligningstabell.loc[none_mask, "predikert_pollen"])
+        )
+        print(f"NULL:")
+        print(f"Antall dager i perioden: {periode.sum()}")
+        print(f"Antall dager i rmse perioden: {none_mask.sum()}")
+        print(f"Null pollen MAE: {mae_none_pollen:.2f}")
+        print(f"Null pollen RMSE: {rmse_none_pollen:.2f}")
+    else:
+        print("Ingen dager med manglende pollenverdier på 0 i perioden.")
+
+    faktisk_none = sammenligningstabell["målt_pollen"] == 0
+    predikert_none = sammenligningstabell["predikert_pollen"] == 0
+
+    treff = (faktisk_none & predikert_none).sum()
+    falsk_alarm = (~faktisk_none & predikert_none).sum()
+    bommet = (faktisk_none & ~predikert_none).sum()
+    riktig_ikke_null = (~faktisk_none & ~predikert_none).sum()
+
+    print(f"Målt og predikert pollen = 0 (treff): {treff}")
+    print(f"Predikert 0, men målt ulik 0 (falsk alarm): {falsk_alarm}")
+    print(f"Målt 0, men predikert ulik 0 (bom): {bommet}")
+    print(f"Målt og predikert ulik 0: {riktig_ikke_null}")
+    # slutt null nivå
+
+
+    # Beregner lavt pollennivå:
+    if low_mask.any():
+        y_true = sammenligningstabell.loc[low_mask, "målt_pollen"]
+        y_pred = sammenligningstabell.loc[low_mask, "predikert_pollen"]
+
+        mae_low_pollen = mean_absolute_error(y_true, y_pred)
+        rmse_low_pollen = np.sqrt(mean_squared_error(y_true, y_pred))
+
+        print(f"LOW:")
+        print(f"Antall dager i perioden: {periode.sum()}")
+        print(f"Antall dager med målt pollen mellom 1 og 10: {low_mask.sum()}")
+        print(f"Lavt pollen MAE: {mae_low_pollen:.2f}")
+        print(f"Lavt pollen RMSE: {rmse_low_pollen:.2f}")
+    else:
+        print("Ingen dager med målt pollenverdi mellom 1 og 10.")
+
+    faktisk_low = sammenligningstabell["målt_pollen"].between(1, 10, inclusive="both")
+    predikert_low = sammenligningstabell["predikert_pollen"].between(1, 10, inclusive="both")
+
+    treff = (faktisk_low & predikert_low).sum()
+    falsk_alarm = (~faktisk_low & predikert_low).sum()
+    bommet = (faktisk_low & ~predikert_low).sum()
+    riktig_ikke_low = (~faktisk_low & ~predikert_low).sum()
+
+    print(f"Målt og predikert pollen mellom 1 og 10 (treff): {treff}")
+    print(f"Predikert 1–10, men målt utenfor intervallet (falsk alarm): {falsk_alarm}")
+    print(f"Målt 1–10, men predikert utenfor intervallet (bom): {bommet}")
+    print(f"Målt og predikert utenfor intervallet 1–10: {riktig_ikke_low}")
+    # slutt lavt nivå
+
+    # Beregner medium pollennivå:
+    if medium_mask.any():
+        y_true = sammenligningstabell.loc[medium_mask, "målt_pollen"]
+        y_pred = sammenligningstabell.loc[medium_mask, "predikert_pollen"]
+
+        mae_medium_pollen = mean_absolute_error(y_true, y_pred)
+        rmse_medium_pollen = np.sqrt(mean_squared_error(y_true, y_pred))
+
+        print(f"MEDIUM:")
+        print(f"Antall dager i perioden: {periode.sum()}")
+        print(f"Antall dager med målt pollen mellom 11–69: {medium_mask.sum()}")
+        print(f"Lavt pollen MAE: {mae_medium_pollen:.2f}")
+        print(f"Lavt pollen RMSE: {rmse_medium_pollen:.2f}")
+    else:
+        print("Ingen dager med målt pollenverdi mellom 11 og 69.")
+
+    faktisk_medium = sammenligningstabell["målt_pollen"].between(11, 69, inclusive="both")
+    predikert_medium = sammenligningstabell["predikert_pollen"].between(11, 69, inclusive="both")
+
+    treff = (faktisk_medium & predikert_medium).sum()
+    falsk_alarm = (~faktisk_medium & predikert_medium).sum()
+    bommet = (faktisk_medium & ~predikert_medium).sum()
+    riktig_ikke_medium = (~faktisk_medium & ~predikert_medium).sum()
+
+    print(f"Målt og predikert pollen mellom 11–69 (treff): {treff}")
+    print(f"Predikert 11–69, men målt utenfor intervallet (falsk alarm): {falsk_alarm}")
+    print(f"Målt 11–69, men predikert utenfor intervallet (bom): {bommet}")
+    print(f"Målt og predikert utenfor intervallet 11–69: {riktig_ikke_medium}")
+    # slutt medium nivå
+
+    # Beregner høy pollennivå:
+    if høy_mask.any():
+        mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy_mask, "målt_pollen"], sammenligningstabell.loc[høy_mask, "predikert_pollen"])
+        rmse_høy_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
+        )
+        print(f"HIGH:")
+        print(f"Antall dager i perioden: {periode.sum()}")
+        print(f"Antall dager i rmse perioden: {høy_mask.sum()}")
+        print(f"Høy pollen MAE: {mae_høy_pollen:.2f}")
+        print(f"Høy pollen RMSE: {rmse_høy_pollen:.2f}")
+    else:
+        print("Ingen dager med målt pollenverdi på minst 70 i perioden.")
+
+
+    faktisk_høy = sammenligningstabell["målt_pollen"] >= 70
+    predikert_høy = sammenligningstabell["predikert_pollen"] >= 70
+
+    treff = (faktisk_høy & predikert_høy).sum()
+    falsk_alarm = (~faktisk_høy & predikert_høy).sum()
+    bommet_toppdag = (faktisk_høy & ~predikert_høy).sum()
+    riktig_lav = (~faktisk_høy & ~predikert_høy).sum()
+
+    print(f"Faktisk og predikert >= 70 (treff): {treff}")
+    print(f"Predikert >= 70, men målt < 70 (falske alarmer): {falsk_alarm}")
+    print(f"Målt >= 70, men predikert < 70 (bommet toppdag): {bommet_toppdag}")
+    print(f"Både målt og predikert < 70: {riktig_lav}")
+    # slutt høy nivå
+
+
+    ########
+
+
+
+
+    "------------------"
+    # Visualisering:
+    plt.figure(figsize=(14, 6))
+
+    plt.plot(
+        train_final.index,
+        train_final[target],
+        label="Historisk bjørkepollen (til og med 2024)",
+        color="blue",
+        alpha=0.4,
     )
-    print(f"NULL:")
-    print(f"Antall dager i perioden: {periode.sum()}")
-    print(f"Antall dager i rmse perioden: {none_mask.sum()}")
-    print(f"Null pollen MAE: {mae_none_pollen:.2f}")
-    print(f"Null pollen RMSE: {rmse_none_pollen:.2f}")
-else:
-    print("Ingen dager med manglende pollenverdier på 0 i perioden.")
 
-faktisk_none = sammenligningstabell["målt_pollen"] == 0
-predikert_none = sammenligningstabell["predikert_pollen"] == 0
-
-treff = (faktisk_none & predikert_none).sum()
-falsk_alarm = (~faktisk_none & predikert_none).sum()
-bommet = (faktisk_none & ~predikert_none).sum()
-riktig_ikke_null = (~faktisk_none & ~predikert_none).sum()
-
-print(f"Målt og predikert pollen = 0 (treff): {treff}")
-print(f"Predikert 0, men målt ulik 0 (falsk alarm): {falsk_alarm}")
-print(f"Målt 0, men predikert ulik 0 (bom): {bommet}")
-print(f"Målt og predikert ulik 0: {riktig_ikke_null}")
-# slutt null nivå
-
-
-# Beregner lavt pollennivå:
-if low_mask.any():
-    y_true = sammenligningstabell.loc[low_mask, "målt_pollen"]
-    y_pred = sammenligningstabell.loc[low_mask, "predikert_pollen"]
-
-    mae_low_pollen = mean_absolute_error(y_true, y_pred)
-    rmse_low_pollen = np.sqrt(mean_squared_error(y_true, y_pred))
-
-    print(f"LOW:")
-    print(f"Antall dager i perioden: {periode.sum()}")
-    print(f"Antall dager med målt pollen mellom 1 og 10: {low_mask.sum()}")
-    print(f"Lavt pollen MAE: {mae_low_pollen:.2f}")
-    print(f"Lavt pollen RMSE: {rmse_low_pollen:.2f}")
-else:
-    print("Ingen dager med målt pollenverdi mellom 1 og 10.")
-
-faktisk_low = sammenligningstabell["målt_pollen"].between(1, 10, inclusive="both")
-predikert_low = sammenligningstabell["predikert_pollen"].between(1, 10, inclusive="both")
-
-treff = (faktisk_low & predikert_low).sum()
-falsk_alarm = (~faktisk_low & predikert_low).sum()
-bommet = (faktisk_low & ~predikert_low).sum()
-riktig_ikke_low = (~faktisk_low & ~predikert_low).sum()
-
-print(f"Målt og predikert pollen mellom 1 og 10 (treff): {treff}")
-print(f"Predikert 1–10, men målt utenfor intervallet (falsk alarm): {falsk_alarm}")
-print(f"Målt 1–10, men predikert utenfor intervallet (bom): {bommet}")
-print(f"Målt og predikert utenfor intervallet 1–10: {riktig_ikke_low}")
-# slutt lavt nivå
-
-# Beregner medium pollennivå:
-if medium_mask.any():
-    y_true = sammenligningstabell.loc[medium_mask, "målt_pollen"]
-    y_pred = sammenligningstabell.loc[medium_mask, "predikert_pollen"]
-
-    mae_medium_pollen = mean_absolute_error(y_true, y_pred)
-    rmse_medium_pollen = np.sqrt(mean_squared_error(y_true, y_pred))
-
-    print(f"MEDIUM:")
-    print(f"Antall dager i perioden: {periode.sum()}")
-    print(f"Antall dager med målt pollen mellom 11–69: {medium_mask.sum()}")
-    print(f"Lavt pollen MAE: {mae_medium_pollen:.2f}")
-    print(f"Lavt pollen RMSE: {rmse_medium_pollen:.2f}")
-else:
-    print("Ingen dager med målt pollenverdi mellom 11 og 69.")
-
-faktisk_medium = sammenligningstabell["målt_pollen"].between(11, 69, inclusive="both")
-predikert_medium = sammenligningstabell["predikert_pollen"].between(11, 69, inclusive="both")
-
-treff = (faktisk_medium & predikert_medium).sum()
-falsk_alarm = (~faktisk_medium & predikert_medium).sum()
-bommet = (faktisk_medium & ~predikert_medium).sum()
-riktig_ikke_medium = (~faktisk_medium & ~predikert_medium).sum()
-
-print(f"Målt og predikert pollen mellom 11–69 (treff): {treff}")
-print(f"Predikert 11–69, men målt utenfor intervallet (falsk alarm): {falsk_alarm}")
-print(f"Målt 11–69, men predikert utenfor intervallet (bom): {bommet}")
-print(f"Målt og predikert utenfor intervallet 11–69: {riktig_ikke_medium}")
-# slutt medium nivå
-
-# Beregner høy pollennivå:
-if høy_mask.any():
-    mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy_mask, "målt_pollen"], sammenligningstabell.loc[høy_mask, "predikert_pollen"])
-    rmse_høy_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
+    plt.plot(
+        test_2025.index,
+        y_test,
+        label="Faktisk bjørkepollen 2025",
+        color="black",
+        linewidth=1.5,
     )
-    print(f"HIGH:")
-    print(f"Antall dager i perioden: {periode.sum()}")
-    print(f"Antall dager i rmse perioden: {høy_mask.sum()}")
-    print(f"Høy pollen MAE: {mae_høy_pollen:.2f}")
-    print(f"Høy pollen RMSE: {rmse_høy_pollen:.2f}")
-else:
-    print("Ingen dager med målt pollenverdi på minst 70 i perioden.")
+
+    plt.plot(
+        test_2025.index,
+        predictions_2025,
+        label="CatBoost-prediksjon 2025",
+        color="blue",
+        linestyle="--",
+        linewidth=2,
+    )
+
+    plt.title("Bjørkepollen 2025: faktisk vs. CatBoost-prediksjon")
+    plt.xlabel("Dato")
+    plt.ylabel("Pollenkonsentrasjon (bjørk_mean)")
+    plt.axvline(
+        pd.Timestamp("2025-01-01"),
+        color="red",
+        linestyle=":",
+        label="Starten på 2025",
+    )
 
 
-faktisk_høy = sammenligningstabell["målt_pollen"] >= 70
-predikert_høy = sammenligningstabell["predikert_pollen"] >= 70
+    plt.axhline(y=11, color='orange', linestyle='-', label="Medium nivå")
+    plt.axhline(y=70, color='red', linestyle='-', label="Høyt nivå")
 
-treff = (faktisk_høy & predikert_høy).sum()
-falsk_alarm = (~faktisk_høy & predikert_høy).sum()
-bommet_toppdag = (faktisk_høy & ~predikert_høy).sum()
-riktig_lav = (~faktisk_høy & ~predikert_høy).sum()
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
-print(f"Faktisk og predikert >= 70 (treff): {treff}")
-print(f"Predikert >= 70, men målt < 70 (falske alarmer): {falsk_alarm}")
-print(f"Målt >= 70, men predikert < 70 (bommet toppdag): {bommet_toppdag}")
-print(f"Både målt og predikert < 70: {riktig_lav}")
-# slutt høy nivå
-
-
-########
-# Lagre ferdigberegnede prediksjoner med dato, slik at server.py kan slå dem opp.
-pollen_predictions = pd.DataFrame({
-    "date": pd.to_datetime(test_2025.index).strftime("%d.%m.%Y"),
-    "pollen_type": "Bjørk",
-    "pollen_level": predictions_2025,
-})
-
-pollen_predictions.to_csv(
-    "pollen_predictions.csv",
-    index=False,
-    encoding="utf-8",
-)
-
-print("Lagret ferdige prediksjoner i pollen_predictions.csv")
-
-"------------------"
-# Visualisering:
-plt.figure(figsize=(14, 6))
-
-plt.plot(
-    train_final.index,
-    train_final[target],
-    label="Historisk bjørkepollen (til og med 2024)",
-    color="blue",
-    alpha=0.4,
-)
-
-plt.plot(
-    test_2025.index,
-    y_test,
-    label="Faktisk bjørkepollen 2025",
-    color="black",
-    linewidth=1.5,
-)
-
-plt.plot(
-    test_2025.index,
-    predictions_2025,
-    label="CatBoost-prediksjon 2025",
-    color="blue",
-    linestyle="--",
-    linewidth=2,
-)
-
-plt.title("Bjørkepollen 2025: faktisk vs. CatBoost-prediksjon")
-plt.xlabel("Dato")
-plt.ylabel("Pollenkonsentrasjon (bjørk_mean)")
-plt.axvline(
-    pd.Timestamp("2025-01-01"),
-    color="red",
-    linestyle=":",
-    label="Starten på 2025",
-)
-
-
-plt.axhline(y=11, color='orange', linestyle='-', label="Medium nivå")
-plt.axhline(y=70, color='red', linestyle='-', label="Høyt nivå")
-
-plt.grid(True, linestyle="--", alpha=0.5)
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-"https://stackoverflow.com/questions/33382619/plot-a-horizontal-line-on-a-given-plot"
+    "https://stackoverflow.com/questions/33382619/plot-a-horizontal-line-on-a-given-plot"

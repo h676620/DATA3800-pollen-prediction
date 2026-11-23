@@ -27,7 +27,7 @@ config = types.GenerateContentConfig(
     system_instruction=(
         "Hent ut dato og pollentype som brukeren oppgir. "
         "Datoformatet skal være DD.MM.YYYY, for eksempel 12.04.2025. "
-        "Pollentypen som støttes er Bjørk. Ikke finn på opplysninger. "
+        "Pollentypen som støttes er Bjørk eller . Ikke finn på opplysninger. "
         "Hvis dato eller pollentype mangler, still ett kort spørsmål "
         "om én manglende opplysning. Når begge er oppgitt, skal question "
         "være null. På oppfølgingsmeldinger skal du beholde opplysninger "
@@ -92,11 +92,13 @@ if __name__ == "__main__":
         if answer is None:
             print("bot:", pollen_request.question or "Jeg trenger litt mer informasjon.")
         else:
+            forecast = answer["forecast"]
             print("bot: Prediksjoner:")
-            for day in answer["forecast"]:
-                print(
-                    f"  {day['date']}: "
-                    f"{day['pollen_type']} – {day['pollen_level']:.2f}"
-                )
+
+            for date, level in zip(
+                forecast["Dato"],
+                forecast["Pollen-nivå"],
+            ):
+                print(f"  {date}: {level}")
 
         print()
