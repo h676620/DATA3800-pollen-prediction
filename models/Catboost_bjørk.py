@@ -228,7 +228,6 @@ print(f"RMSE for 2025: {rmse:.2f}")
 
 # Indeks = dato
 test_dates = pd.to_datetime(test_2025.index)
-
 # periode
 periode = (test_dates >= "2025-03-01") & (test_dates <= "2025-05-31")
 
@@ -243,14 +242,6 @@ print(f"Antall dager i perioden: {periode.sum()}")
 print(f"MAE (1. mars–31. mai 2025): {mae_periode:.2f}")
 print(f"RMSE (1. mars–31. mai 2025): {rmse_periode:.2f}")
 
-typisk_pollenverdi = y_test_periode.mean()
-
-print(f"Gjennomsnittlig faktisk pollenverdi: {typisk_pollenverdi:.2f}")
-print(f"MAE / gjennomsnitt: {mae_periode / typisk_pollenverdi * 100:.1f}%")
-print(f"RMSE / gjennomsnitt: {rmse_periode / typisk_pollenverdi * 100:.1f}%")
-
-
-print("\nFørste 10 prediksjoner for 2025:", predictions_2025[:10])
 
 "------ Beregning av når pred og reele målinger er 70+ for 2025 -----------" 
 
@@ -268,9 +259,6 @@ sammenligningstabell = pd.DataFrame({
     "målt_pollen": y_test.iloc[periode].to_numpy(),
     "predikert_nivå" : None,
 })
-
-
-"""mae_høy_pollen = mean_absolute_error(sammenligningstabell["predikert_pollen_cat"], sammenligningstabell["målt_pollen_cat"])"""
 
 none_mask = sammenligningstabell["målt_pollen"]  == 0
 low_mask = sammenligningstabell["målt_pollen"].between(1, 10, inclusive="both") 
@@ -298,29 +286,12 @@ while i < len(sammenligningstabell):
 
 print("SAMMENLIGNING:")
 print(sammenligningstabell.sample(10))
-#from pollen_lookup import lookup_pollen_level
 
+#LAGER predikert_bjork.csv for pollen-lookup.py
 from pathlib import Path
 csv_fil = Path(__file__).with_name("predikert_bjork.csv")
 sammenligningstabell["dato"] = pd.to_datetime(sammenligningstabell["dato"]).dt.strftime("%d.%m.%Y")
 sammenligningstabell.to_csv(csv_fil, index=False)
-
-
-def predict_pollen(today_date: str):
-    csv_fil = Path(__file__).with_name("predikert_bjork.csv")
-    tabell = pd.read_csv(csv_fil)
-
-    ønsket_dato = pd.to_datetime(today_date, format="%d.%m.%Y").date()
-    datoer = pd.to_datetime(tabell["dato"]).dt.date
-    treff = tabell.loc[datoer == ønsket_dato]
-
-    nivå = None if treff.empty else treff.iloc[0]["predikert_nivå"]
-
-    return {
-        "Dato": [today_date],
-        "Pollen-nivå": [nivå],
-    }
-
 
 
 
@@ -442,12 +413,6 @@ if __name__ == "__main__":
     print(f"Målt >= 70, men predikert < 70 (bommet toppdag): {bommet_toppdag}")
     print(f"Både målt og predikert < 70: {riktig_lav}")
     # slutt høy nivå
-
-
-    ########
-
-
-
 
     "------------------"
     # Visualisering:
