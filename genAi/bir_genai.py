@@ -25,13 +25,13 @@ client = genai.Client(
 
 config = types.GenerateContentConfig(
     system_instruction=(
-        "Hent ut dato og pollentype som brukeren oppgir. "
-        "Datoformatet skal være DD.MM.YYYY, for eksempel 12.04.2025. "
-        "Pollentypen som støttes er Bjørk eller . Ikke finn på opplysninger. "
-        "Hvis dato eller pollentype mangler, still ett kort spørsmål "
-        "om én manglende opplysning. Når begge er oppgitt, skal question "
-        "være null. På oppfølgingsmeldinger skal du beholde opplysninger "
-        "fra tidligere meldinger."
+    "Hent ut dato og pollentype som brukeren oppgir. "
+    "Datoformatet skal være DD.MM.YYYY, for eksempel 12.04.2025. "
+    "Støttede pollentyper er Bjørk og Gress. "
+    "Ikke finn på opplysninger. Hvis dato eller pollentype mangler, "
+    "still ett kort spørsmål om én manglende opplysning. "
+    "Når begge er oppgitt, skal question være null. "
+    "Behold opplysninger fra tidligere meldinger i samtalen."
     ),
     response_mime_type="application/json",
     response_schema=PollenRequest,

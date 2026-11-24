@@ -298,12 +298,27 @@ while i < len(sammenligningstabell):
 
 print("SAMMENLIGNING:")
 print(sammenligningstabell.sample(10))
+#from pollen_lookup import lookup_pollen_level
+
+from pathlib import Path
+csv_fil = Path(__file__).with_name("predikert_bjork.csv")
+sammenligningstabell["dato"] = pd.to_datetime(sammenligningstabell["dato"]).dt.strftime("%d.%m.%Y")
+sammenligningstabell.to_csv(csv_fil, index=False)
 
 
 def predict_pollen(today_date: str):
+    csv_fil = Path(__file__).with_name("predikert_bjork.csv")
+    tabell = pd.read_csv(csv_fil)
+
+    ønsket_dato = pd.to_datetime(today_date, format="%d.%m.%Y").date()
+    datoer = pd.to_datetime(tabell["dato"]).dt.date
+    treff = tabell.loc[datoer == ønsket_dato]
+
+    nivå = None if treff.empty else treff.iloc[0]["predikert_nivå"]
+
     return {
-        "Dato": sammenligningstabell.index.astype(str).tolist(),
-        "Pollen-nivå": sammenligningstabell["predikert_nivå"].tolist(),
+        "Dato": [today_date],
+        "Pollen-nivå": [nivå],
     }
 
 
