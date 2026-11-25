@@ -280,52 +280,6 @@ bommet_toppdag = (faktisk_høy & ~predikert_høy).sum()
 riktig_lav = (~faktisk_høy & ~predikert_høy).sum()
 
 "------------------"
-        # Visualisering:
-plt.figure(figsize=(14, 6))
-plt.plot(
-    train_final.index,
-    train_final[target],
-    label="Historisk bjørkepollen (til og med 2024)",
-    color="blue",
-    alpha=0.4,
-)
-
-plt.plot(
-    test_2025.index,
-    y_test,
-    label="Faktisk bjørkepollen 2025",
-    color="black",
-    linewidth=1.5,
-)
-
-plt.plot(
-    test_2025.index,
-    predictions_2025,
-    label="CatBoost-prediksjon 2025",
-    color="blue",
-    linestyle="--",
-    linewidth=2,
-)
-
-plt.title("Bjørkepollen 2025: faktisk vs. CatBoost-prediksjon")
-plt.xlabel("Dato")
-plt.ylabel("Pollenkonsentrasjon (bjørk_mean)")
-plt.axvline(
-    pd.Timestamp("2025-01-01"),
-    color="red",
-    linestyle=":",
-    label="Starten på 2025",
-)
-
-plt.axhline(y=11, color='orange', linestyle='-', label="Medium nivå")
-plt.axhline(y=70, color='red', linestyle='-', label="Høyt nivå")
-
-plt.grid(True, linestyle="--", alpha=0.5)
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-"https://stackoverflow.com/questions/33382619/plot-a-horizontal-line-on-a-given-plot"
 
 # ---------------Printout for å se verdier ----------
 trening_val_test_dager_antall = {
@@ -401,3 +355,51 @@ def print_pollenmengder():
 
 print_antall_dager_og_målinger()
 print_pollenmengder()
+
+
+        # Visualisering:
+plt.figure(figsize=(14, 6))
+plt.plot(
+    train_final.index,
+    train_final[target],
+    label="Historisk bjørkepollen (til og med 2024)",
+    color="blue",
+    alpha=0.4,
+)
+
+plt.plot(
+    test_2025.index,
+    y_test,
+    label="Faktisk bjørkepollen 2025",
+    color="black",
+    linewidth=1.5,
+)
+
+plt.plot(
+    test_2025.index,
+    predictions_2025,
+    label="CatBoost-prediksjon 2025",
+    color="blue",
+    linestyle="--",
+    linewidth=2,
+)
+
+plt.title("Bjørkepollen 2025: faktisk vs. CatBoost-prediksjon")
+plt.xlabel("Dato")
+plt.ylabel("Pollenkonsentrasjon (bjørk_mean)")
+plt.axvline(
+    pd.Timestamp("2025-01-01"),
+    color="red",
+    linestyle=":",
+    label="Starten på 2025",
+)
+
+plt.axhline(y=11, color='orange', linestyle='-', label="Medium nivå")
+plt.axhline(y=70, color='red', linestyle='-', label="Høyt nivå")
+
+plt.grid(True, linestyle="--", alpha=0.5)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+"https://stackoverflow.com/questions/33382619/plot-a-horizontal-line-on-a-given-plot"
