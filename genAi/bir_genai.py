@@ -29,6 +29,10 @@ config = types.GenerateContentConfig(
     "Datoformatet skal være DD.MM.YYYY, for eksempel 12.04.2025. "
     "Støttede pollentyper er Bjørk og Gress. "
     "Ikke finn på opplysninger. Hvis dato eller pollentype mangler, "
+    "Hvis dato mangler dag, mnd og/eller år ikke legg inn opplysninger basert på tidligere informasjon. "
+    
+    "For eksempel hvis forrige år er 2025 og dato er 4.4 ikke fyll det ut med 2025. Be om full dato på nytt"
+    "Hvis forrige svar hadde en type pollen og neste input kun er en ny type pollen ikke fyll ut med forrige datoinfo. Be om full dato på nytt."
     "still ett kort spørsmål om én manglende opplysning. "
     "Når begge er oppgitt, skal question være null. "
     "Behold opplysninger fra tidligere meldinger i samtalen."
