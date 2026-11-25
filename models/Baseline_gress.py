@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error, ConfusionMatrixDisplay
 
 #Laster inn pollen og værdata
 df = pd.read_csv("data/full_pollen_and_weather_data_Zurich.csv", sep=";")
@@ -90,3 +91,31 @@ print(f"\n--- Baseline (gjetter gårsdagen), test (2026) ---")
 print("MAE:", mean_absolute_error(y_test, test_prediksjoner))
 print("R2:", r2_score(y_test, test_prediksjoner))
 print("RMSE:", root_mean_squared_error(y_test, test_prediksjoner))
+
+#confusion matrix for Baseline
+grense = 50
+faktisk_høy_test = (y_test > grense).to_numpy()
+prediksjon_høy_test = test_prediksjoner > grense
+
+treff = (faktisk_høy_test & prediksjon_høy_test).sum()
+bommet_toppdag = (faktisk_høy_test & ~prediksjon_høy_test).sum()
+falsk_alarm = (~faktisk_høy_test & prediksjon_høy_test).sum()
+riktig_lav = (~faktisk_høy_test & ~prediksjon_høy_test).sum()
+
+print(f"Dager over {grense} : {faktisk_høy_test.sum()}")
+print(f"Treff: {treff}")
+print(f"Falsk alarm: {falsk_alarm}") 
+print(f"Bommet toppdag: {bommet_toppdag}")
+print(f"Riktig lav: {riktig_lav}")
+
+
+matrise = np.array([[treff, bommet_toppdag], 
+                    [falsk_alarm, riktig_lav]])
+
+visning = ConfusionMatrixDisplay(confusion_matrix=matrise, display_labels=["Høy", "Ikke høy"])
+visning.plot(cmap="Blues")
+plt.title(f"Confusion matrix for Baseline (gjetter gårsdagen), gress, grense {grense}")
+plt.xlabel("Baselinens prediksjon")
+plt.ylabel("Faktisk pollen")
+plt.savefig("Confusion_matrix_baseline_gress.png")
+plt.show()

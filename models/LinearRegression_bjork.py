@@ -1,7 +1,17 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error, ConfusionMatrixDisplay
+
+#Deler pollenmengden inn i tre kategorier
+def pollenklasse(verdi):
+    if verdi < 11:
+        return "lav"
+    elif verdi < 70:
+        return "moderat"
+    else:
+        return "høy"
 
 #Laster inn pollen og værdata
 df = pd.read_csv("data/full_pollen_and_weather_data_Zurich.csv", sep=";")
@@ -102,19 +112,7 @@ print("RMSE:", root_mean_squared_error(y_validering, validering_prediksjoner))
 
 #Snitt pollen i valideringperioden, for å vurdere hvor stor MAE er i forhold til gjennomsnittlig pollennivå. Dette gir oss en bedre forståelse av hvor godt modellen predikerer pollennivåene.
 print("Snitt pollen i valideringen:", y_validering.mean())
-
-#sjekker hvor bra modellen er til å predikere høye pollennivåer.
-grense = 90
-faktisk_høy = (y_validering > grense).to_numpy()
-prediksjon_høy = validering_prediksjoner > grense
-
-treff = (faktisk_høy & prediksjon_høy).sum()
-bom = (faktisk_høy & ~prediksjon_høy).sum()
-falsk_alarm = (~faktisk_høy & prediksjon_høy).sum()
-
-print(f"Dager over {grense} : {faktisk_høy.sum()}")
-print(f"Modellen traff {treff} av dem ({treff / faktisk_høy.sum() :.0%})")
-print(f"Falske alarmer: {falsk_alarm}") 
+                                                            
 
 #Tren modellen på både trenings- og valideringssettet.
 X_final = pd.concat([X_trening, X_validering])
@@ -129,6 +127,40 @@ print("MAE:", mean_absolute_error(y_test, test_prediksjoner))
 print("R2:", r2_score(y_test, test_prediksjoner))
 print("RMSE:", root_mean_squared_error(y_test, test_prediksjoner))
 
+#sjekker hvor bra modellen er til å predikere høye pollennivåer.
+grense = 70
+faktisk_høy_test = (y_test > grense).to_numpy()
+prediksjon_høy_test = test_prediksjoner > grense
+
+treff = (faktisk_høy_test & prediksjon_høy_test).sum()
+bommet_toppdag = (faktisk_høy_test & ~prediksjon_høy_test).sum()
+falsk_alarm = (~faktisk_høy_test & prediksjon_høy_test).sum()
+riktig_lav = (~faktisk_høy_test & ~prediksjon_høy_test).sum()
+
+print(f"Dager over {grense} : {faktisk_høy_test.sum()}")
+print(f"Treff: {treff}")
+print(f"Falsk alarm: {falsk_alarm}") 
+print(f"Bommet toppdag: {bommet_toppdag}")
+print(f"Riktig lav: {riktig_lav}")
+
+#Deler dagene inn i lav, moderat og høy
+klasse_faktisk = y_test.apply(pollenklasse)
+klasse_prediksjon = pd.Series(test_prediksjoner).apply(pollenklasse)
+print("Andel dager med riktig kategori:", (klasse_faktisk.to_numpy() == klasse_prediksjon.to_numpy()).mean())
+
+#Confusion matrix
+matrise = np.array([[treff, bommet_toppdag], 
+                    [falsk_alarm, riktig_lav]])
+
+visning = ConfusionMatrixDisplay(confusion_matrix=matrise, display_labels=["Høy", "Ikke høy"])
+visning.plot(cmap="Blues")
+plt.title(f"Confusion matrix for bjørk  (grense: {grense})")
+plt.xlabel("Modellens prediksjon")
+plt.ylabel("Faktisk pollen")
+plt.savefig("Confusion_matrix_bjørk.png")
+plt.show()
+               
+
 #Graf
 import matplotlib.pyplot as plt
 
@@ -137,8 +169,8 @@ plt.plot(test["dato"], y_test, label="Faktisk pollen")
 plt.plot(test["dato"], test_prediksjoner, label="Predikert pollen")
 plt.xlabel("Dato")
 plt.ylabel("Bjørkepollen")
-plt.title("Pollenprediksjon")
-plt.axhline(90, color='red', linestyle='--', label='Grense (90)')
+plt.title("Pollenprediksjon: Bjørk")
+plt.axhline(70, color='red', linestyle='--', label='Grense (70)')
 plt.legend()
 plt.tight_layout()
 plt.savefig("Linear_regression_bjørk.png", dpi=150)
@@ -149,3 +181,8 @@ print("\n--- Koefissienter ---")
 for navn, koeff in zip(features, final_modell.coef_):
     print(f"{navn}: {koeff: .3f}")
 print(f"Konstantledd: {final_modell.intercept_: .3f}")
+
+#Ganger koeffisientene med standardavviket slik at variablene kan sammenlignes
+viktighet = final_modell.coef_ * X_final.std()
+viktighet = viktighet.abs().sort_values()
+print(viktighet)
