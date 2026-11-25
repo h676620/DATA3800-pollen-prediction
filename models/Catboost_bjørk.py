@@ -192,25 +192,25 @@ sammenligningstabell = pd.DataFrame({
     "predikert_nivå" : None,
 })
 
-none_mask = sammenligningstabell["målt_pollen"]  == 0
-low_mask = sammenligningstabell["målt_pollen"].between(1, 10, inclusive="both") 
-medium_mask = sammenligningstabell["målt_pollen"].between(11, 69, inclusive="both") 
-høy_mask = sammenligningstabell["målt_pollen"] >= 70
+none = sammenligningstabell["målt_pollen"]  == 0
+low = sammenligningstabell["målt_pollen"].between(1, 10, inclusive="both") 
+medium = sammenligningstabell["målt_pollen"].between(11, 69, inclusive="both") 
+høy = sammenligningstabell["målt_pollen"] >= 70
 
-none_mask_pred = sammenligningstabell["predikert_pollen"]  == 0
-low_mask_pred = sammenligningstabell["predikert_pollen"].between(1, 10, inclusive="both") 
-medium_mask_pred = sammenligningstabell["predikert_pollen"].between(11, 69, inclusive="both") 
-høy_mask_pred = sammenligningstabell["predikert_pollen"] >= 70
+none_pred = sammenligningstabell["predikert_pollen"]  == 0
+low_pred = sammenligningstabell["predikert_pollen"].between(1, 10, inclusive="both") 
+medium_pred = sammenligningstabell["predikert_pollen"].between(11, 69, inclusive="both") 
+høy_pred = sammenligningstabell["predikert_pollen"] >= 70
 
 i = 0
 while i < len(sammenligningstabell):
-    if none_mask.iloc[i]:
+    if none.iloc[i]:
         sammenligningstabell.loc[i, "predikert_nivå"] = "NONE"
-    elif low_mask.iloc[i]:
+    elif low.iloc[i]:
         sammenligningstabell.loc[i, "predikert_nivå"] = "LOW"
-    elif medium_mask.iloc[i]:
+    elif medium.iloc[i]:
         sammenligningstabell.loc[i, "predikert_nivå"] = "MEDIUM"
-    elif høy_mask.iloc[i]:
+    elif høy.iloc[i]:
         sammenligningstabell.loc[i, "predikert_nivå"] = "HIGH"
     i += 1
 
@@ -220,15 +220,11 @@ csv_fil = Path(__file__).with_name("predikert_bjork.csv")
 sammenligningstabell["dato"] = pd.to_datetime(sammenligningstabell["dato"]).dt.strftime("%d.%m.%Y")
 sammenligningstabell.to_csv(csv_fil, index=False)
 
-#### PRINTER UT MAE OG RMSE FOR FORSKJELLIGE POLLENNIVÅER #####
-# Beregner null pollennivå:
-
-if none_mask.any():
-        mae_none_pollen = mean_absolute_error(sammenligningstabell.loc[none_mask, "målt_pollen"], sammenligningstabell.loc[none_mask, "predikert_pollen"])
-        rmse_none_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[none_mask, "målt_pollen"],sammenligningstabell.loc[none_mask, "predikert_pollen"])
-        )
-else:
-        print("Ingen dager med manglende pollenverdier på 0 i perioden.")
+#SANNHETSTABELLER
+if none.any():
+    mae_none_pollen = mean_absolute_error(sammenligningstabell.loc[none, "målt_pollen"], sammenligningstabell.loc[none, "predikert_pollen"])
+    rmse_none_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[none, "målt_pollen"],sammenligningstabell.loc[none, "predikert_pollen"])
+    )
 
 faktisk_none = sammenligningstabell["målt_pollen"] == 0
 predikert_none = sammenligningstabell["predikert_pollen"] == 0
@@ -238,9 +234,9 @@ bommet_null = (faktisk_none & ~predikert_none).sum()
 riktig_ikke_null = (~faktisk_none & ~predikert_none).sum()
 
     # Beregner lavt pollennivå:
-if low_mask.any():
-    y_true = sammenligningstabell.loc[low_mask, "målt_pollen"]
-    y_pred = sammenligningstabell.loc[low_mask, "predikert_pollen"]
+if low.any():
+    y_true = sammenligningstabell.loc[low, "målt_pollen"]
+    y_pred = sammenligningstabell.loc[low, "predikert_pollen"]
 
     mae_low_pollen = mean_absolute_error(y_true, y_pred)
     rmse_low_pollen = np.sqrt(mean_squared_error(y_true, y_pred))
@@ -253,9 +249,9 @@ bommet_low = (faktisk_low & ~predikert_low).sum()
 riktig_ikke_low = (~faktisk_low & ~predikert_low).sum()
     
     # Beregner medium pollennivå:
-if medium_mask.any():
-    y_true = sammenligningstabell.loc[medium_mask, "målt_pollen"]
-    y_pred = sammenligningstabell.loc[medium_mask, "predikert_pollen"]
+if medium.any():
+    y_true = sammenligningstabell.loc[medium, "målt_pollen"]
+    y_pred = sammenligningstabell.loc[medium, "predikert_pollen"]
     mae_medium_pollen = mean_absolute_error(y_true, y_pred)
     rmse_medium_pollen = np.sqrt(mean_squared_error(y_true, y_pred))
 
@@ -267,9 +263,9 @@ bommet_medium = (faktisk_medium & ~predikert_medium).sum()
 riktig_ikke_medium = (~faktisk_medium & ~predikert_medium).sum()
 
     # Beregner høy pollennivå:
-if høy_mask.any():
-    mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy_mask, "målt_pollen"], sammenligningstabell.loc[høy_mask, "predikert_pollen"])
-    rmse_høy_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[høy_mask, "målt_pollen"],sammenligningstabell.loc[høy_mask, "predikert_pollen"])
+if høy.any():
+    mae_høy_pollen = mean_absolute_error(sammenligningstabell.loc[høy, "målt_pollen"], sammenligningstabell.loc[høy, "predikert_pollen"])
+    rmse_høy_pollen = np.sqrt(mean_squared_error(sammenligningstabell.loc[høy, "målt_pollen"],sammenligningstabell.loc[høy, "predikert_pollen"])
     )
 
 faktisk_høy = sammenligningstabell["målt_pollen"] >= 70
@@ -303,7 +299,7 @@ pollen_bjørk_prediksjoner_2025_periode = {
 }
     #""""Holdes separat === "Antall dager i perioden": round(float(periode.sum),2),"""""
 pollenmengde_none = {
-        "Antall dager i rmse perioden": round(float(none_mask.sum()), 2),
+        "Antall dager i rmse perioden": round(float(none.sum()), 2),
         "Null pollen MAE": round(float(mae_none_pollen), 2),
         "Null pollen RMSE": round(float(rmse_none_pollen), 2),
         "Treff": round(float(treff_null), 2),
@@ -313,7 +309,7 @@ pollenmengde_none = {
     }
 
 pollenmengde_low = {
-        "Antall dager i rmse perioden": round(float(low_mask.sum()), 2),
+        "Antall dager i rmse perioden": round(float(low.sum()), 2),
         "Lav pollen MAE": round(float(mae_low_pollen), 2),
         "Lav pollen RMSE": round(float(rmse_low_pollen), 2),
         "Treff": round(float(treff_low), 2),
@@ -323,7 +319,7 @@ pollenmengde_low = {
     }
 
 pollenmengde_medium = {
-        "Antall dager i rmse perioden": round(float(medium_mask.sum()), 2),
+        "Antall dager i rmse perioden": round(float(medium.sum()), 2),
         "Medium pollen MAE": round(float(mae_medium_pollen), 2),
         "Medium pollen RMSE": round(float(rmse_medium_pollen), 2),
         "Treff": round(float(treff_medium), 2),
@@ -333,7 +329,7 @@ pollenmengde_medium = {
     }
 
 pollenmengde_high = {
-        "Antall dager i rmse perioden": round(float(høy_mask.sum()), 2),
+        "Antall dager i rmse perioden": round(float(høy.sum()), 2),
         "Høy pollen MAE": round(float(mae_høy_pollen), 2),
         "Høy pollen RMSE": round(float(rmse_høy_pollen), 2),
         "Treff": round(float(treff_high), 2),
