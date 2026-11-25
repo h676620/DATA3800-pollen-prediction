@@ -72,13 +72,12 @@ pollen_igår = (
 )
 
 avg_bjork = avg_bjork[avg_bjork['bjørk_count']>=20]
-total_sun = avg_total_sun[avg_total_sun["sol_sum"] >= 20] #fiks dette
+#total_sun = avg_total_sun[avg_total_sun["sol_sum"] >= 20] #--------------fiks dette
+total_sun = avg_total_sun.loc[avg_total_sun["sol_count"] >= 20,["sol_sum"]]
 avg_temp = avg_temp[avg_temp["temp_count"] >= 20]
 avg_regn = avg_regn[avg_regn["regn_count"] >= 20]
 avg_vind = avg_vind[avg_vind["vind_count"] >= 20]
-avg_luftfuktighet = avg_luftfuktighet[
-    avg_luftfuktighet["luftfukt_count"] >= 20
-]
+avg_luftfuktighet = avg_luftfuktighet[avg_luftfuktighet["luftfukt_count"] >= 20]
 
 average_bjørk = pd.concat([avg_dagnr, avg_bjork, pollen_igår, total_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet ], axis=1) 
 
@@ -91,21 +90,24 @@ from catboost import CatBoostRegressor
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-print("Rader ved starten:", len(average_bjørk))
-print("Kolonner:", average_bjørk.columns.tolist())
+#print("Rader ved starten:", len(average_bjørk))
+#print("Kolonner:", average_bjørk.columns.tolist())
 
 # Tidsfeatures
 average_bjørk["år"] = pd.to_datetime(average_bjørk.index).year
-
-#Tidligere val: features = ['sol_mean', 'temp_mean', 'regn_mean', 'vind_mean', 'luftfukt_mean', 'dagnr']
 features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår', 'dagnr' ]
 target = 'bjørk_mean'
 
-print("Før dropna:", len(average_bjørk))
-print(average_bjørk[features + [target]].isna().sum())
-
-# Fjerner NaN i features/target
+verdier_til_dictionary = {}
+verdier_til_dictionary["før_dropna"] = len(average_bjørk)
 average_bjørk.dropna(subset=features + [target], inplace=True)
+verdier_til_dictionary["etter_dropna"] = len(average_bjørk)
+
+#print("Før dropna:", len(average_bjørk))
+#print(average_bjørk[features + [target]].isna().sum())
+# Fjerner NaN i features/target
+#average_bjørk.dropna(subset=features + [target], inplace=True)
+#print("Etter dropna:", len(average_bjørk))
 
 # Del data kronologisk
 train_early = average_bjørk[average_bjørk["år"] <= 2023]
@@ -114,10 +116,14 @@ train_final = average_bjørk[average_bjørk["år"] <= 2024]
 test_2025 = average_bjørk[average_bjørk["år"] == 2025]
 
 # Kontroller at alle delene inneholder data
-print("Trening til og med 2023:", len(train_early))
-print("Validering 2024:", len(val_2024))
-print("Endelig trening til og med 2024:", len(train_final))
-print("Test 2025:", len(test_2025))
+#print("Trening til og med 2023:", len(train_early))
+#print("Validering 2024:", len(val_2024))
+#print("Endelig trening til og med 2024:", len(train_final))
+#print("Test 2025:", len(test_2025))
+
+
+
+    
 
 if train_early.empty or val_2024.empty or train_final.empty or test_2025.empty:
     raise ValueError("En av datasplittende er tom. Kontroller hvilke år som finnes i dataene.")
@@ -141,7 +147,7 @@ model_for_validation.fit(
 )
 
 best_iterations = model_for_validation.get_best_iteration() + 1
-print("Valgt antall iterasjoner:", best_iterations)
+#print("Valgt antall iterasjoner:", best_iterations)
 
 final_model = CatBoostRegressor(
     iterations=best_iterations,
@@ -175,11 +181,10 @@ y_val_2024 = y_val_2024.iloc[periode_2024]
 mae_2024 = mean_absolute_error(y_val_2024, predictions_2024)
 rmse_2024 = np.sqrt(mean_squared_error(y_val_2024, predictions_2024))
 
-print(f"Antall dager i valideringen 2024: {len(y_val_2024)}")
-print(f"MAE for 2024: {mae_2024:.2f}")
-print(f"RMSE for 2024: {rmse_2024:.2f}")
-print(f"Beste iterasjon: {model_for_validation.get_best_iteration() + 1}")
-
+#print(f"Antall dager i valideringen 2024: {len(y_val_2024)}")
+#print(f"MAE for 2024: {mae_2024:.2f}")
+#print(f"RMSE for 2024: {rmse_2024:.2f}")
+#print(f"Beste iterasjon: {model_for_validation.get_best_iteration() + 1}")
 
 predictions_2025 = final_model.predict(test_2025[features])
 predictions_2025 = np.maximum(predictions_2025, 0)
@@ -187,8 +192,9 @@ y_test = test_2025[target]
 mae = mean_absolute_error(y_test, predictions_2025)
 rmse = np.sqrt(mean_squared_error(y_test, predictions_2025))
 
-print(f"MAE for 2025: {mae:.2f}")
-print(f"RMSE for 2025: {rmse:.2f}")
+#print(f"MAE for 2025: {mae:.2f}")
+#print(f"RMSE for 2025: {rmse:.2f}")
+
 
 "-----------------"
 
@@ -196,17 +202,14 @@ print(f"RMSE for 2025: {rmse:.2f}")
 test_dates = pd.to_datetime(test_2025.index)
 # periode
 periode = (test_dates >= "2025-03-01") & (test_dates <= "2025-05-31")
-
-
 y_test_periode = y_test.iloc[periode]
 predictions_periode = predictions_2025[periode]
-
 mae_periode = mean_absolute_error(y_test_periode, predictions_periode)
 rmse_periode = np.sqrt(mean_squared_error(y_test_periode, predictions_periode))
 
-print(f"Antall dager i perioden: {periode.sum()}")
-print(f"MAE (1. mars–31. mai 2025): {mae_periode:.2f}")
-print(f"RMSE (1. mars–31. mai 2025): {rmse_periode:.2f}")
+#print(f"Antall dager i perioden: {periode.sum()}")
+#print(f"MAE (1. mars–31. mai 2025): {mae_periode:.2f}")
+#print(f"RMSE (1. mars–31. mai 2025): {rmse_periode:.2f}")
 
 
 "------ Beregning av når pred og reele målinger er 70+ for 2025 -----------" 
@@ -248,8 +251,8 @@ while i < len(sammenligningstabell):
         sammenligningstabell.loc[i, "predikert_nivå"] = "HIGH"
     i += 1
 
-print("SAMMENLIGNING:")
-print(sammenligningstabell.sample(10))
+#print("SAMMENLIGNING:")
+#print(sammenligningstabell.sample(10))
 
 #LAGER predikert_bjork.csv for pollen-lookup.py
 from pathlib import Path
@@ -333,6 +336,9 @@ if __name__ == "__main__":
     else:
         print("Ingen dager med målt pollenverdi mellom 11 og 69.")
 
+    def pollenmengde_og_sannhetstabell():
+        ""
+
     faktisk_medium = sammenligningstabell["målt_pollen"].between(11, 69, inclusive="both")
     predikert_medium = sammenligningstabell["predikert_pollen"].between(11, 69, inclusive="both")
 
@@ -374,6 +380,34 @@ if __name__ == "__main__":
     print(f"Målt >= 70, men predikert < 70 (bommet toppdag): {bommet_toppdag}")
     print(f"Både målt og predikert < 70: {riktig_lav}")
     # slutt høy nivå
+
+
+#"""STATISTIKK()"""
+trening_val_test_dager_antall = {
+    "Antall dager" : verdier_til_dictionary["før_dropna"], 
+    "Antall dager uten nullverdier": verdier_til_dictionary["etter_dropna"],
+    "Antall - trening 2023" : len(train_early), 
+    "Antall - validering 2024" : len(val_2024),
+    "Antall - endelig trening 2023-2024" : len(train_final),
+    "Beste iterasjoner" : best_iterations,
+    }
+
+val_prediksjoner_2024 = {
+    "Antall dager for val-prediksjon" : len(y_val_2024),
+    "MAE for 2024" : round(float(mae_2024),2), 
+    "RMSE for 2024": round(float(rmse_2024),2),
+}
+pollen_bjørk_prediksjoner_2025_periode = {
+"Antall dager i prediksjonsperioden" : periode.sum(),
+"MAE (1. mars–31. mai 2025)" : round(float(mae_periode),2),
+"RMSE (1. mars–31. mai 2025)" : round(float(rmse_periode),2),
+}
+
+def antall_dager_og_målinger():
+    print(trening_val_test_dager_antall)
+    print(val_prediksjoner_2024)
+    print(pollen_bjørk_prediksjoner_2025_periode)
+
 
     "------------------"
     # Visualisering:
