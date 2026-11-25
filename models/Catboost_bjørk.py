@@ -55,35 +55,23 @@ df = df.drop(columns=["kaalnuh0","kacoryh0","kafaguh0",
                       "gre000h0","oli000h0","olo000h0",
                       "osr000h0","tso005hs","tso010hs",
                       "tso020hs", "ods000h0", "Værstasjon", "Pollenstasjon"])
-print(df.head(40))
 
 avg_bjork = df.groupby("dato")["Bjørk"].agg(bjørk_mean ='mean', bjørk_sum = 'sum', bjørk_count ='count')
-
-
 avg_total_sun = df.groupby("dato")["Sol (minutt)"].agg(sol_mean ='mean', sol_sum = 'sum', sol_count ='count')
-
-
 avg_temp = df.groupby("dato")["LuftTemp"].agg(temp_mean ='mean', temp_sum = 'sum', temp_count ='count')
-
-
 avg_regn = df.groupby("dato")["Nedbør (mm)"].agg(regn_mean ='mean', regn_sum = 'sum', regn_count ='count')
-
 avg_vind = df.groupby("dato")["Vind (m/s?)"].agg(vind_mean ='mean', vind_sum = 'sum', vind_count ='count')
-
-
 avg_luftfuktighet = df.groupby("dato")["LuftFuktighet"].agg(luftfukt_mean ='mean', luftfukt_sum = 'sum', luftfukt_count ='count')
-
 avg_dagnr = df.groupby("dato")["day_date"].first().rename("dagnr")
 
 pollen_igår = (
-    avg_bjork["bjørk_mean"]  # Bytt til kolonnen med selve pollenverdien hvis dette er en målingsteller
+    avg_bjork["bjørk_mean"]  
     .where(avg_bjork["bjørk_count"] >= 20)
     .shift(1)
     .rename("pollen_igår")
 )
 
 avg_bjork = avg_bjork[avg_bjork['bjørk_count']>=20]
-
 total_sun = avg_total_sun[avg_total_sun["sol_sum"] >= 20] #fiks dette
 avg_temp = avg_temp[avg_temp["temp_count"] >= 20]
 avg_regn = avg_regn[avg_regn["regn_count"] >= 20]
@@ -93,9 +81,6 @@ avg_luftfuktighet = avg_luftfuktighet[
 ]
 
 average_bjørk = pd.concat([avg_dagnr, avg_bjork, pollen_igår, total_sun, avg_temp, avg_regn, avg_vind, avg_luftfuktighet ], axis=1) 
-print(average_bjørk.iloc[60:81])
-"print(average_bjørk.head(10))"
-"print(average_bjørk[average_bjørk.isna().any(axis=1)])"
 
 "---------------End of table cleaning -----------------------"
 
@@ -111,16 +96,9 @@ print("Kolonner:", average_bjørk.columns.tolist())
 
 # Tidsfeatures
 average_bjørk["år"] = pd.to_datetime(average_bjørk.index).year
+
 #Tidligere val: features = ['sol_mean', 'temp_mean', 'regn_mean', 'vind_mean', 'luftfukt_mean', 'dagnr']
-
-
 features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår', 'dagnr' ]
-"""features = [
-    "temp_mean_i_går",
-    "luftfukt_mean_i_går",
-    "sol_sum_i_går",
-    "pollen_igår",
-]"""
 target = 'bjørk_mean'
 
 print("Før dropna:", len(average_bjørk))
@@ -128,7 +106,6 @@ print(average_bjørk[features + [target]].isna().sum())
 
 # Fjerner NaN i features/target
 average_bjørk.dropna(subset=features + [target], inplace=True)
-"""print("Etter dropna:", len(average_bjørk))"""
 
 # Del data kronologisk
 train_early = average_bjørk[average_bjørk["år"] <= 2023]
@@ -144,7 +121,6 @@ print("Test 2025:", len(test_2025))
 
 if train_early.empty or val_2024.empty or train_final.empty or test_2025.empty:
     raise ValueError("En av datasplittende er tom. Kontroller hvilke år som finnes i dataene.")
-
 
 model_for_validation = CatBoostRegressor(
     iterations=1000,
@@ -164,10 +140,8 @@ model_for_validation.fit(
     verbose=100
 )
 
-
 best_iterations = model_for_validation.get_best_iteration() + 1
 print("Valgt antall iterasjoner:", best_iterations)
-
 
 final_model = CatBoostRegressor(
     iterations=best_iterations,
@@ -190,7 +164,6 @@ predictions_2024 = model_for_validation.predict(val_2024[features])
 predictions_2024 = np.maximum(predictions_2024, 0)
 
 y_val_2024 = val_2024[target]
-
 val_dates_2024 = pd.to_datetime(val_2024.index)
 periode_2024 = (
     (val_dates_2024 >= "2024-03-01") &
@@ -199,13 +172,8 @@ periode_2024 = (
 
 predictions_2024 = predictions_2024[periode_2024]
 y_val_2024 = y_val_2024.iloc[periode_2024]
-
-
 mae_2024 = mean_absolute_error(y_val_2024, predictions_2024)
 rmse_2024 = np.sqrt(mean_squared_error(y_val_2024, predictions_2024))
-
-"""TRENGER FÆRRE DAGER FOR VAl"""
-
 
 print(f"Antall dager i valideringen 2024: {len(y_val_2024)}")
 print(f"MAE for 2024: {mae_2024:.2f}")
@@ -215,9 +183,7 @@ print(f"Beste iterasjon: {model_for_validation.get_best_iteration() + 1}")
 
 predictions_2025 = final_model.predict(test_2025[features])
 predictions_2025 = np.maximum(predictions_2025, 0)
-
 y_test = test_2025[target]
-
 mae = mean_absolute_error(y_test, predictions_2025)
 rmse = np.sqrt(mean_squared_error(y_test, predictions_2025))
 
@@ -271,7 +237,6 @@ medium_mask_pred = sammenligningstabell["predikert_pollen"].between(11, 69, incl
 høy_mask_pred = sammenligningstabell["predikert_pollen"] >= 70
 
 i = 0
-
 while i < len(sammenligningstabell):
     if none_mask.iloc[i]:
         sammenligningstabell.loc[i, "predikert_nivå"] = "NONE"
@@ -281,7 +246,6 @@ while i < len(sammenligningstabell):
         sammenligningstabell.loc[i, "predikert_nivå"] = "MEDIUM"
     elif høy_mask.iloc[i]:
         sammenligningstabell.loc[i, "predikert_nivå"] = "HIGH"
-
     i += 1
 
 print("SAMMENLIGNING:")
@@ -292,9 +256,6 @@ from pathlib import Path
 csv_fil = Path(__file__).with_name("predikert_bjork.csv")
 sammenligningstabell["dato"] = pd.to_datetime(sammenligningstabell["dato"]).dt.strftime("%d.%m.%Y")
 sammenligningstabell.to_csv(csv_fil, index=False)
-
-
-
 
 #### PRINTER UT MAE OG RMSE FOR FORSKJELLIGE POLLENNIVÅER #####
 # Beregner null pollennivå:
