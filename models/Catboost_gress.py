@@ -99,7 +99,7 @@ import pandas as pd
 import catboost as cb
 from catboost import CatBoostRegressor
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 print("Rader ved starten:", len(average_gress))
 print("Kolonner:", average_gress.columns.tolist())
@@ -109,7 +109,7 @@ average_gress["kalender_dag"] = pd.to_datetime(average_gress.index).day
 average_gress["mnd"] = pd.to_datetime(average_gress.index).month
 average_gress["år"] = pd.to_datetime(average_gress.index).year
 
-features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår', 'dagnr' ]
+features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår' ]
 target = 'gress_mean'
 
 verdier_til_dictionary = {}
@@ -181,6 +181,8 @@ predictions_2025 = predictions_2025[periode_2025]
 y_val_2025 = y_val_2025.iloc[periode_2025]
 mae_2025 = mean_absolute_error(y_val_2025, predictions_2025)
 rmse_2025 = np.sqrt(mean_squared_error(y_val_2025, predictions_2025))
+R2_2025 = r2_score(y_val_2025, predictions_2025)
+
 predictions_2026 = final_model.predict(test_2026[features])
 predictions_2026 = np.maximum(predictions_2026, 0)
 y_test = test_2026[target]
@@ -198,6 +200,7 @@ y_test_periode = y_test.iloc[periode]
 predictions_periode = predictions_2026[periode]
 mae_periode = mean_absolute_error(y_test_periode, predictions_periode)
 rmse_periode = np.sqrt(mean_squared_error(y_test_periode, predictions_periode))
+r2_2026_periode = r2_score(y_test_periode, predictions_periode)
 
 "------ Beregning av når pred og reele målinger for 2026 -----------" 
 
@@ -315,11 +318,13 @@ val_prediksjoner_2025 = {
     "Antall dager for val-prediksjon" : len(y_val_2025),
     "MAE for 2025" : round(float(mae_2025),2), 
     "RMSE for 2025": round(float(rmse_2025),2),
+    "R2": round(float(R2_2025),2),
 }
 pollen_gress_prediksjoner_2026_periode = {
 "Antall dager i prediksjonsperioden (1. april - 9.sept 2026)" : periode.sum(),
 "MAE" : round(float(mae_periode),2),
 "RMSE": round(float(rmse_periode),2),
+"R2": round(float(r2_2026_periode),2)
 }
     #""""Holdes separat === "Antall dager i perioden": round(float(periode.sum),2),"""""
 pollenmengde_none = {

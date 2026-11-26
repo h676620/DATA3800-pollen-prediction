@@ -88,11 +88,11 @@ import pandas as pd
 import catboost as cb
 from catboost import CatBoostRegressor
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 # Tidsfeatures
 average_bjørk["år"] = pd.to_datetime(average_bjørk.index).year
-features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår', 'dagnr' ]
+features = ['temp_mean', 'luftfukt_mean', 'sol_sum', 'pollen_igår' ]
 target = 'bjørk_mean'
 
 verdier_til_dictionary = {}
@@ -157,12 +157,14 @@ predictions_2024 = predictions_2024[periode_2024]
 y_val_2024 = y_val_2024.iloc[periode_2024]
 mae_2024 = mean_absolute_error(y_val_2024, predictions_2024)
 rmse_2024 = np.sqrt(mean_squared_error(y_val_2024, predictions_2024))
+r2_2024 = r2_score(y_val_2024, predictions_2024)
 
 predictions_2025 = final_model.predict(test_2025[features])
 predictions_2025 = np.maximum(predictions_2025, 0)
 y_test = test_2025[target]
-mae = mean_absolute_error(y_test, predictions_2025)
-rmse = np.sqrt(mean_squared_error(y_test, predictions_2025))
+mae_2025 = mean_absolute_error(y_test, predictions_2025)
+rmse_2025 = np.sqrt(mean_squared_error(y_test, predictions_2025))
+
 
 "-----------------"
 
@@ -174,6 +176,7 @@ y_test_periode = y_test.iloc[periode]
 predictions_periode = predictions_2025[periode]
 mae_periode = mean_absolute_error(y_test_periode, predictions_periode)
 rmse_periode = np.sqrt(mean_squared_error(y_test_periode, predictions_periode))
+r2_2025_periode = r2_score(y_test_periode, predictions_periode)
 
 "------ Beregning av når pred og reele målinger er 70+ for 2025 -----------" 
 
@@ -197,10 +200,10 @@ low = sammenligningstabell["målt_pollen"].between(1, 10, inclusive="both")
 medium = sammenligningstabell["målt_pollen"].between(11, 69, inclusive="both") 
 høy = sammenligningstabell["målt_pollen"] >= 70
 
-none_pred = sammenligningstabell["predikert_pollen"]  == 0
+"""none_pred = sammenligningstabell["predikert_pollen"]  == 0
 low_pred = sammenligningstabell["predikert_pollen"].between(1, 10, inclusive="both") 
 medium_pred = sammenligningstabell["predikert_pollen"].between(11, 69, inclusive="both") 
-høy_pred = sammenligningstabell["predikert_pollen"] >= 70
+høy_pred = sammenligningstabell["predikert_pollen"] >= 70"""
 
 i = 0
 while i < len(sammenligningstabell):
@@ -215,10 +218,12 @@ while i < len(sammenligningstabell):
     i += 1
 
 #LAGER predikert_bjork.csv for pollen-lookup.py
-from pathlib import Path
+"""from pathlib import Path
 csv_fil = Path(__file__).with_name("predikert_bjork.csv")
 sammenligningstabell["dato"] = pd.to_datetime(sammenligningstabell["dato"]).dt.strftime("%d.%m.%Y")
-sammenligningstabell.to_csv(csv_fil, index=False)
+sammenligningstabell.to_csv(csv_fil, index=False)"""
+
+
 
 #SANNHETSTABELLER
 if none.any():
@@ -291,11 +296,13 @@ val_prediksjoner_2024 = {
     "Antall dager for val-prediksjon" : len(y_val_2024),
     "MAE for 2024" : round(float(mae_2024),2), 
     "RMSE for 2024": round(float(rmse_2024),2),
+    "R2:": round(float(r2_2024),2),
 }
 pollen_bjørk_prediksjoner_2025_periode = {
 "Antall dager i prediksjonsperioden" : periode.sum(),
 "MAE (1. mars–31. mai 2025)" : round(float(mae_periode),2),
 "RMSE (1. mars–31. mai 2025)" : round(float(rmse_periode),2),
+"R2:": round(float(r2_2025_periode),2),
 }
     #""""Holdes separat === "Antall dager i perioden": round(float(periode.sum),2),"""""
 pollenmengde_none = {
