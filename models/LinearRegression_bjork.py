@@ -101,9 +101,10 @@ print(f"Trening: {len(X_trening)} dager, Validering: {len(X_validering)} dager, 
 modell = LinearRegression()
 modell.fit(X_trening, y_trening)
 
-#Evaluer den linear regresjonsmodellen med valideringssettet. Her  bruker vi  R2 score og MAE (mean absolute error)
+#Evaluer den linear regresjonsmodellen med valideringssettet. Her  bruker vi  R2 score, RMSE og MAE (mean absolute error)
 # R2 score er et mål på hvor godt modellen forklarer variasjonen i dataene. En R2 score på 1 betyr at modellen forklarer all variasjon, mens en R2 score på 0 betyr at modellen ikke forklarer noen variasjon.
 # MAE er et mål på hvor langt unna modellens prediksjoner er fra de faktiske verdiene. En lav MAE betyr at modellen predikerer godt, mens en høy MAE betyr at modellen predikerer dårlig. 
+#RMSE (Root Mean Squared Error) er et mål på hvor langt unna modellens prediksjoner er fra de faktiske verdiene, men gir større vekt til store feil. En lav RMSE betyr at modellen predikerer godt, mens en høy RMSE betyr at modellen predikerer dårlig.
 validering_prediksjoner = modell.predict(X_validering)
 print("\n--- Validering (2024) ---")
 print("MAE:", mean_absolute_error(y_validering, validering_prediksjoner))
@@ -122,6 +123,7 @@ final_modell.fit(X_final, y_final)
 
 # Evaluer deretter med testsettet. Skal gjøres til slutt, kun en gang. 
 test_prediksjoner = final_modell.predict(X_test)
+test_prediksjoner = np.maximum(test_prediksjoner, 0)  #pollen kan ikke være negativ
 print("\n--- Test (2025) ---")
 print("MAE:", mean_absolute_error(y_test, test_prediksjoner))
 print("R2:", r2_score(y_test, test_prediksjoner))
@@ -186,3 +188,18 @@ print(f"Konstantledd: {final_modell.intercept_: .3f}")
 viktighet = final_modell.coef_ * X_final.std()
 viktighet = viktighet.abs().sort_values()
 print(viktighet)
+
+#GenAI
+from pathlib import Path
+
+sammenligningstabell = pd.DataFrame({
+    "dato": test["dato"].to_numpy(),
+    "predikert_pollen": test_prediksjoner,
+    "målt_pollen": y_test.to_numpy(),
+    "predikert_nivå": klasse_prediksjon.map({"lav": "LOW", "moderat": "MEDIUM", "høy": "HIGH"}).to_numpy(),
+    })
+
+sammenligningstabell["dato"] = pd.to_datetime(sammenligningstabell["dato"]).dt.strftime("%d.%m.%Y")
+csv_fil = Path(__file__).with_name("predikert_bjork.csv")
+sammenligningstabell.to_csv(csv_fil, index=False)
+print("Lagret:", csv_fil)

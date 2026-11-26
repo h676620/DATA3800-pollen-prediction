@@ -87,6 +87,7 @@ print("RMSE:", root_mean_squared_error(y_validering, validering_prediksjoner))
 
 #Baseline for testsettet (2026)
 test_prediksjoner = test["gress_i_går"]
+test_prediksjoner = np.maximum(test_prediksjoner, 0)  #pollen kan ikke være negativ
 print(f"\n--- Baseline (gjetter gårsdagen), test (2026) ---")
 print("MAE:", mean_absolute_error(y_test, test_prediksjoner))
 print("R2:", r2_score(y_test, test_prediksjoner))
