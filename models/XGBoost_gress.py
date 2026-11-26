@@ -125,8 +125,8 @@ gress_sesong = modell_data[
 features = [
     "gress_i_går",
     "luftfuktighet_mean",
-    "solskinn_total",
-    "nedbør_total"
+    "temperatur_mean",
+    "solskinn_total"
 ]
 
 
@@ -177,19 +177,26 @@ model.fit(X_train, y_train)
 # Final test på 2026:
 y_test_pred = model.predict(X_test)
 
+import numpy as np
+# Negative prediksjoner settes til 0
+y_test_pred = np.maximum(y_test_pred, 0)
+
 
 ####################################################
 # Evaluerer modellen
 #################################################
 
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 
 test_mae = mean_absolute_error(y_test, y_test_pred)
 test_rmse = root_mean_squared_error(y_test, y_test_pred)
+test_r2 = r2_score(y_test, y_test_pred)
+
 
 print("\nFINAL TEST – 2026")
 print("Test MAE:", test_mae)
 print("Test RMSE:", test_rmse)
+print("Test R^2", test_r2)
 
 
 ###########################################################

@@ -1,4 +1,19 @@
 import pandas as pd
+import numpy as np
+
+from xgboost import XGBRegressor
+from sklearn.metrics import (
+    mean_absolute_error,
+    root_mean_squared_error,
+    r2_score
+)
+
+import matplotlib.pyplot as plt
+
+
+############################################################
+# Leser inn og klargjør datasettet
+############################################################
 
 # Leser inn datasettet
 df = pd.read_csv(
@@ -26,7 +41,8 @@ df = df.rename(columns={
     "dkl010h0": "Vindretning"
 })
 
-# Velger ut de kolonnene som er relevante
+
+# Velger ut kolonnene som er relevante
 data = df[
     [
         "Tid",
@@ -39,14 +55,24 @@ data = df[
     ]
 ].copy()
 
+
 # Konverterer tidskolonnen til datetime
 data["Tid"] = pd.to_datetime(data["Tid"])
 
 # Lager dato uten klokkeslett
 data["dato"] = data["Tid"].dt.date
 
-# Gjør timesdata om til daglige verdier, og har med antall timesmålinger hver dag bygger på for å senere sjekke at hver dag har minst 20 gyldige timer/målinger.
+
+############################################################
+# Gjør timesdata om til daglige verdier
+############################################################
+
+# Aggregere dataene til én verdi per dag.
+# Vi har også med antall timesmålinger hver dag bygger på,
+# slik at vi senere kan kontrollere at hver dag har minst
+# 20 gyldige målinger.
 daglig_alle = data.groupby("dato").agg(
+
     bjørk_mean=("Bjørk", "mean"),
     bjørk_antall=("Bjørk", "count"),
 
@@ -64,17 +90,25 @@ daglig_alle = data.groupby("dato").agg(
 
     nedbør_total=("Nedbør", "sum"),
     nedbør_antall=("Nedbør", "count")
-).reset_index() #gjør "dato" om til en vanlig kolonne igjen
+
+).reset_index()
 
 
-# Gjør "dato" til datetime
+# Gjør dato til datetime
 daglig_alle["dato"] = pd.to_datetime(daglig_alle["dato"])
 
-#lager kolonnen "dag_i_året" slik at modellen kan vite hvor i pollensesongen vi er
+
+# Lager kolonnen dag_i_året,
+# slik at modellen kan vite hvor i året/pollensesongen vi er
 daglig_alle["dag_i_året"] = daglig_alle["dato"].dt.dayofyear
 
 
-# Bruker bare de dagene/radene som har minst 20 gyldige timer/målinger. Filtrerer ut de dagene som har mindre enn 20 gyldige målinger for noen av variablene.
+############################################################
+# Datarensing
+############################################################
+
+# Beholder bare dager som har minst 20 gyldige
+# timesmålinger for alle variablene
 daglig_gyldige = daglig_alle[
     (daglig_alle["bjørk_antall"] >= 20) &
     (daglig_alle["temperatur_antall"] >= 20) &
@@ -84,59 +118,84 @@ daglig_gyldige = daglig_alle[
     (daglig_alle["nedbør_antall"] >= 20)
 ].copy()
 
-# Sorterer datoene kronologisk før vi lager target (trengs egentlig ikke, bare for sikkerhet, kan droppe)
+
+# Sorterer datoene kronologisk
 daglig_gyldige = daglig_gyldige.sort_values("dato").copy()
 
-# enkel print for å se hvordan datasettet ser ut etter datarensing
+
+# Printer informasjon om datasettet etter datarensing
 print("\nStørrelse etter datarensing:")
 print(daglig_gyldige.shape)
 
+print("\nFørste rader:")
 print(daglig_gyldige.head())
 
-print("\nstatistikk:")
+print("\nStatistikk:")
 print(daglig_gyldige.describe())
 
 
-# lager ny kolonne som er hva bjørkekonsentrasjonen var dagen før, slik at modellen kan bruke det som input for å predikere konsentrasjonen i dag
-daglig_gyldige["bjørk_i_går"] = daglig_gyldige["bjørk_mean"].shift(+1)
+############################################################
+# Feature engineering: bjørkepollen dagen før
+############################################################
 
-# må sørge for at "bjørk_i_går" faktisk kommer fra dagen før (dato-1) og ikke fra flere dager siden, siden vi har dager/rader som mangler:
-# lager kolonne som er datoen forrige dag 
-daglig_gyldige["i_går"] = daglig_gyldige["dato"].shift(+1)
+# Lager ny kolonne med bjørkepollenkonsentrasjonen dagen før
+daglig_gyldige["bjørk_i_går"] = (
+    daglig_gyldige["bjørk_mean"].shift(1)
+)
 
-# lager nytt datasett der "bjørk_i_går" faktisk kommer fra dagen før
-modell_data = daglig_gyldige[daglig_gyldige["i_går"] == daglig_gyldige["dato"] + pd.Timedelta(days=-1)].copy()
 
-# nå kan vi droppe kolonnen "i_går" som vi bare brukte for å sjekke at "bjørk_i_går" faktisk kom fra dagen før
+# Lager også en kolonne med datoen til forrige rad
+# for å kontrollere at verdien faktisk kommer fra dagen før
+daglig_gyldige["i_går"] = (
+    daglig_gyldige["dato"].shift(1)
+)
+
+
+# Beholder bare rader hvor forrige observasjon faktisk
+# kommer fra kalenderdagen før
+modell_data = daglig_gyldige[
+    daglig_gyldige["i_går"]
+    ==
+    daglig_gyldige["dato"] - pd.Timedelta(days=1)
+].copy()
+
+
+# Kolonnen i_går var bare nødvendig for kontrollen,
+# så den kan fjernes nå
 modell_data = modell_data.drop(columns=["i_går"])
 
+
+print("\nModell-data:")
 print(modell_data.head())
 print(modell_data.shape)
 
-# Beholder bare bjørkepollensesongen: 01.mars - 30.april
+
+############################################################
+# Beholder bjørkepollensesongen
+############################################################
+
+# Bjørkepollensesong: mars til mai
 bjork_sesong = modell_data[
-    modell_data["dato"].dt.month.between(3, 4)
+    modell_data["dato"].dt.month.between(3, 5)
 ].copy()
 
 
 ############################################################
-# Starter med XGBoost-modellen:
+# XGBoost-modell
 ############################################################
 
-# Velger ut features/inputs for XGBoost
+# Features/inputs modellen skal bruke
 features = [
-    "bjørk_i_går",
-    "temperatur_mean",
-    "vind_mean",
-    "luftfuktighet_mean",
-    "solskinn_total",
-    "nedbør_total",
-    "dag_i_året"
+  "bjørk_i_går",
+  "temperatur_mean",
+  "luftfuktighet_mean",
+  "solskinn_total"
 ]
 
 
-# Deler opp datasettet i treningsdata, valideringsdata og testdata basert på årstall. 
-# Vi bruker 2023 til trening og 2024 til validering først, og så etter valideringen bruker vi både 2023 og 2024 som treningsdata og 2025 som final test:
+############################################################
+# Train / validation / test split
+############################################################
 
 # Train: 2023
 train_data = bjork_sesong[
@@ -154,20 +213,28 @@ test_data = bjork_sesong[
 ].copy()
 
 
-# input(x) og target(y) til treningsdata
+# Input X og target y for treningsdata
 X_train = train_data[features]
 y_train = train_data["bjørk_mean"]
 
-# input(x) og target(y) til valideringsdata
+# Input X og target y for valideringsdata
 X_val = val_data[features]
 y_val = val_data["bjørk_mean"]
 
-# input(x) og target(y) til testdata
+# Input X og target y for testdata
 X_test = test_data[features]
 y_test = test_data["bjørk_mean"]
 
 
-from xgboost import XGBRegressor
+print("\nDatasplit:")
+print("Trening 2023:", len(train_data), "dager")
+print("Validering 2024:", len(val_data), "dager")
+print("Test 2025:", len(test_data), "dager")
+
+
+############################################################
+# Oppretter og trener modellen
+############################################################
 
 model = XGBRegressor(
     n_estimators=100,
@@ -177,31 +244,60 @@ model = XGBRegressor(
     random_state=42
 )
 
-# trener modellen (bare på 2023)
+
+# Trener modellen kun på 2023
 model.fit(X_train, y_train)
 
-# tester modellen på valideringsdata (2024)
+
+############################################################
+# Validering på 2024
+############################################################
+
+# Lager prediksjoner på valideringsdata
 y_val_pred = model.predict(X_val)
 
-# evaluerer modellen på valideringsdata (2024)
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
-# sammenligner predikert pollenverdier og faktisk pollenverdier:
+# Pollenkonsentrasjon kan ikke være negativ.
+# Alle negative prediksjoner settes derfor til 0.
+y_val_pred = np.maximum(y_val_pred, 0)
 
-# mae er hvor mye modellen bommer i gjennomsnitt
-val_mae = mean_absolute_error(y_val, y_val_pred)
-# rmse er også gjennomsnitt bare squared, så store bomminger/prediksjonsfeil gir større rmse-tall
-val_rmse = root_mean_squared_error(y_val, y_val_pred)
 
-print("Validation MAE:", val_mae) 
+############################################################
+# Evaluerer modellen på valideringsdata
+############################################################
+
+# MAE = hvor mye modellen bommer i gjennomsnitt
+val_mae = mean_absolute_error(
+    y_val,
+    y_val_pred
+)
+
+# RMSE gir større straff til store prediksjonsfeil
+val_rmse = root_mean_squared_error(
+    y_val,
+    y_val_pred
+)
+
+# R² viser hvor mye av variasjonen i pollen
+# modellen klarer å forklare
+val_r2 = r2_score(
+    y_val,
+    y_val_pred
+)
+
+
+print("\nVALIDATION – 2024")
+print("Validation MAE:", val_mae)
 print("Validation RMSE:", val_rmse)
+print("Validation R^2:", val_r2)
 
 
-##############
-# plotter resultatet:
-import matplotlib.pyplot as plt
+############################################################
+# Plotter faktisk vs. predikert pollen
+############################################################
 
 plt.figure(figsize=(12, 6))
+
 
 # Faktiske pollenverdier i 2024
 plt.plot(
@@ -210,16 +306,20 @@ plt.plot(
     label="Faktisk pollen"
 )
 
-# Modellens prediksjoner for 2024
+
+# Modellens prediksjoner i 2024
 plt.plot(
     val_data["dato"],
     y_val_pred,
     label="Predikert pollen"
 )
 
+
 plt.xlabel("Dato")
 plt.ylabel("Bjørkepollenkonsentrasjon")
-plt.title("Validering 2024: faktisk vs. predikert bjørkepollen")
+plt.title(
+    "Validering 2024: faktisk vs. predikert bjørkepollen"
+)
 
 plt.legend()
 
@@ -227,5 +327,3 @@ plt.xticks(rotation=45)
 plt.tight_layout()
 
 plt.show()
-
-
