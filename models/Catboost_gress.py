@@ -78,7 +78,7 @@ pollen_igår = (
     .rename("pollen_igår")
 )
 
-total_sun = avg_total_sun[avg_total_sun["sol_sum"] >= 20] #fiks dette
+total_sun = avg_total_sun.loc[avg_total_sun["sol_count"] >= 20,["sol_sum"]]
 avg_temp = avg_temp[avg_temp["temp_count"] >= 20]
 avg_regn = avg_regn[avg_regn["regn_count"] >= 20]
 avg_vind = avg_vind[avg_vind["vind_count"] >= 20]

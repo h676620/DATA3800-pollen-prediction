@@ -7,12 +7,6 @@ import csv
 import DateTime
 import seaborn as sns
 from sklearn.ensemble import RandomForestRegressor
-"full_pollen_and_weather_data_Zurich.csv"
-"Bjørk = kabetuh0 (høy = 90) ""Gress = khpoach0 (høy = 20) "
-"Solskinn = sre000h0, "
-"Regn = erefaoh0 , "
-"Vind = dkl010h0, "
-"Luft-temperatur = tre200h0"
 
 df = pd.read_csv(('data/full_pollen_and_weather_data_Zurich.csv'), delimiter=";", quotechar='|')
 
@@ -73,7 +67,6 @@ pollen_igår = (
 )
 
 avg_bjork = avg_bjork[avg_bjork['bjørk_count']>=20]
-#total_sun = avg_total_sun[avg_total_sun["sol_sum"] >= 20] #--------------fiks dette
 total_sun = avg_total_sun.loc[avg_total_sun["sol_count"] >= 20,["sol_sum"]]
 avg_temp = avg_temp[avg_temp["temp_count"] >= 20]
 avg_regn = avg_regn[avg_regn["regn_count"] >= 20]
@@ -305,7 +298,6 @@ pollen_bjørk_prediksjoner_2025_periode = {
 "RMSE (1. mars–31. mai 2025)" : round(float(rmse_periode),2),
 "R2:": round(float(r2_2025_periode),2),
 }
-    #""""Holdes separat === "Antall dager i perioden": round(float(periode.sum),2),"""""
 pollenmengde_none = {
         "Antall dager i rmse perioden": round(float(none.sum()), 2),
         "Null pollen MAE": round(float(mae_none_pollen), 2),
