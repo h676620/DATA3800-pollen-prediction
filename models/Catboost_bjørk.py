@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import csv
 import DateTime
+import seaborn as sns
 from sklearn.ensemble import RandomForestRegressor
 "full_pollen_and_weather_data_Zurich.csv"
 "Bjørk = kabetuh0 (høy = 90) ""Gress = khpoach0 (høy = 20) "
@@ -356,11 +357,30 @@ def print_pollenmengder():
     print(pollenmengde_medium)
     print(pollenmengde_high)
 
+def print_feature_importance():
+    #https://www.geeksforgeeks.org/machine-learning/catboost-feature-importance/
+    feature_importance = model_for_validation.get_feature_importance()
+    feature_names = train_final[features].columns
+    for name, importance in zip(feature_names, feature_importance):
+        print(f"Feature: {name}, Importance: {importance:.2f}")
+
+def print_diagram_feature_importance():
+    feature_importance = model_for_validation.get_feature_importance()
+    feature_names = train_final[features].columns
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=feature_importance, y=feature_names)
+    plt.title('Feature Importance')
+    plt.xlabel('Importance')
+    plt.ylabel('Features')
+    plt.show()
+
 print_antall_dager_og_målinger()
 print_pollenmengder()
+print_feature_importance()
+#print_diagram_feature_importance() 
 
 
-        # Visualisering:
+        # Visualisering av prediksjoner:
 plt.figure(figsize=(14, 6))
 plt.plot(
     train_final.index,
